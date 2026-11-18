@@ -1,5 +1,6 @@
 // The command: arguments, settings, the server on standard input and output, the end.
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -15,6 +16,7 @@ import { missingFolders } from "../../shell/src/index.js";
 import { Connection } from "./connect.js";
 import { makeHost } from "./host.js";
 import { TIDY_DESCRIPTION, TIDY_NAME, TIDY_TEXT } from "./prompt.js";
+import { LOGIN_USAGE, LOGOUT_USAGE, parseSignArgs, runLogin, runLogout } from "./sign.js";
 import { makeTools } from "./tools.js";
 
 const USAGE = "usage: onetool --config <settings file>";
@@ -24,21 +26,41 @@ const version = JSON.parse(readFileSync(new URL("../../package.json", import.met
 
 const say = (line) => process.stderr.write(`${line}\n`);
 
+/** The settings of the file at `path`, or `null` once its problems are written (the exit code is then 2). */
+function settingsOf(path) {
+  try {
+    return readSettings(path);
+  } catch (err) {
+    if (!(err instanceof SettingsError)) throw err;
+    for (const problem of err.problems) say(`onetool: ${problem}`);
+    process.exitCode = 2;
+    return null;
+  }
+}
+
+/** `login` or `logout`: one thing is done, and the process ends. */
+async function signCommand(word, rest) {
+  const parsed = parseSignArgs(word, rest);
+  if (parsed === null) {
+    say(word === "login" ? LOGIN_USAGE : LOGOUT_USAGE);
+    process.exitCode = 2;
+    return;
+  }
+  const settings = settingsOf(parsed.config);
+  if (settings === null) return;
+  if (word === "login") await runLogin(parsed.server, settings, parsed);
+  else runLogout(parsed.server);
+}
+
 export async function main(argv) {
+  if (argv[0] === "login" || argv[0] === "logout") return signCommand(argv[0], argv.slice(1));
   if (argv.length !== 2 || argv[0] !== "--config") {
     say(USAGE);
     process.exitCode = 2;
     return;
   }
-  let settings;
-  try {
-    settings = readSettings(argv[1]);
-  } catch (err) {
-    if (!(err instanceof SettingsError)) throw err;
-    for (const problem of err.problems) say(`onetool: ${problem}`);
-    process.exitCode = 2;
-    return;
-  }
+  const settings = settingsOf(argv[1]);
+  if (settings === null) return;
 
   if (settings.shell !== null && settings.shell.folders !== null) {
     const missing = await missingFolders(settings.shell.folders);
@@ -54,9 +76,11 @@ export async function main(argv) {
   );
   // a list of tools that can change: the description of `run` follows the folders of the host program
   const listChanged = settings.shell !== null && settings.shell.folders === null;
-  const server = new Server({ name: "onetool", version }, { capabilities: { tools: listChanged ? { listChanged: true } : {}, prompts: {} } });
+  // ... and so does what a sign-in server offers, once the person has signed in or out
+  const signIns = connections.some((connection) => connection.signIn);
+  const server = new Server({ name: "onetool", version }, { capabilities: { tools: listChanged || signIns ? { listChanged: true } : {}, prompts: {} } });
   const host = makeHost(settings, server);
-  const tools = makeTools(settings, connections, server, host);
+  const tools = makeTools(settings, connections, server, host, resolve(argv[1]));
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     host.start();
@@ -101,6 +125,7 @@ export async function main(argv) {
     connections.map(async (connection) => {
       await connection.connect();
       if (connection.error !== null) say(`onetool: server ${connection.name}: not connected (${connection.error})`);
+      else if (connection.needed) say(`onetool: server ${connection.name}: sign in needed`);
     }),
   );
 }

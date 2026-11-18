@@ -23,12 +23,12 @@ test("guide/pages holds the two files and nothing else", () => {
   assert.deepEqual(readdirSync(PAGES).sort(), ["INSTALL.md", "settings.example.json"]);
 });
 
-test("the page is UTF-8, has at most 780 lines (the meeting point of guide, 'Step 8': 780 since step 8), no tab and no carriage return", () => {
+test("the page is UTF-8, has at most 860 lines (the meeting point of guide, 'Step 10': 860 since step 10), no tab and no carriage return", () => {
   const bytes = readFileSync(PAGE);
   const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   // lines as split at \n; a last empty piece after the final \n is not a line
   const count = text.endsWith("\n") ? text.split("\n").length - 1 : text.split("\n").length;
-  assert.ok(count <= 780, `${count} lines`);
+  assert.ok(count <= 860, `${count} lines`);
   assert.ok(!text.includes("\t"), "a tab character");
   assert.ok(!text.includes("\r"), "a carriage return");
 });
@@ -39,7 +39,7 @@ test("the example settings file holds no tab", () => {
 
 // ---- headings ----------------------------------------------------------------------------------------------------
 
-test("the first line is the title, and the headings of level 1 and 2 are exactly the thirteen, in order", () => {
+test("the first line is the title, and the headings of level 1 and 2 are exactly the fourteen, in order", () => {
   const parsed = page();
   assert.equal(parsed.lines[0], "# Installing onetool");
   const top = parsed.headings.filter((heading) => heading.level <= 2);
@@ -153,8 +153,8 @@ test("When something does not work: the texts onetool writes", () => {
   );
 });
 
-test("What onetool does not do: SSE and OAuth", () => {
-  holds("What onetool does not do", "SSE", "OAuth");
+test("What onetool does not do: SSE (the point on OAuth is replaced since step 10)", () => {
+  holds("What onetool does not do", "SSE");
 });
 
 // ---- the examples ------------------------------------------------------------------------------------------------

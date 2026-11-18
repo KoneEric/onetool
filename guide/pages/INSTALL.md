@@ -118,6 +118,9 @@ or https address:
 An entry may not have both `command` and `url`. An entry that breaks a rule is left out and does not stop the
 others: onetool writes one line about it (see "When something does not work").
 
+An entry reached at an address may also have the key `oauth`, for a server that asks you to sign in. It is
+only needed when the server does not let a client register itself. See "Signing in".
+
 The keys of `onetool`, all optional:
 
 | Key | What it is | Default |
@@ -147,6 +150,73 @@ answer or on standard error. It may name a server, and the pattern of a rule whe
 
 A server of yours may not be named `library`: that name is the built-in library's (see "The library"), and an
 entry with it is not connected.
+
+## Signing in
+
+Some servers reached at an address ask you to sign in by OAuth. onetool can sit in front of such a server too.
+It applies to a server reached at an address, with no `Authorization` header in the settings file. A server
+with that header, and a server started by a command, never sign in this way. This entry is all it takes:
+
+```json
+{
+  "mcpServers": {
+    "notes": { "url": "https://example.com/mcp" }
+  }
+}
+```
+
+**What you see before you sign in.** `search` with no words lists the server as `notes: sign in needed`. A
+call of one of its tools fails with a message that gives the command to run. The other servers work as usual.
+
+**The command.** In a terminal, run:
+
+```sh
+node /absolute/path/to/onetool/bin/onetool.js login notes --config /absolute/path/to/settings.json
+```
+
+`npx @koneeric/onetool login notes --config ...` is the same command. It prints the address to open, opens it
+in your browser, and listens on `127.0.0.1` for the browser to come back. It waits 300 seconds at most, then
+says in one line that it worked or why not. Two options change it:
+
+- `--no-browser`: the address is only printed. Use it on a machine with no browser of its own: open the
+  address in a browser on that same machine, or forward the port.
+- `--wait`, with a number of seconds: how long to wait for the browser, instead of 300.
+
+**No restart.** A running onetool picks the sign-in up at the next `search` or `run`. A token that runs out
+is refreshed by itself, with nothing asked. When the server refuses the refresh, it is `sign in needed` again,
+and the same command repairs it.
+
+**Where the sign-in is.** In `~/.onetool/auth`: one file per server, readable by you only (mode `600`). It is
+tied to the name and the address of the server: when the address changes in the settings file, the sign-in is
+not used, and you sign in again. Nothing of a sign-in is ever in an answer, in the trail, in the log or on
+standard error.
+
+**Forgetting it.** Run `onetool logout notes --config /absolute/path/to/settings.json`, in the same way. The
+file is removed. Nothing is sent to the server.
+
+**A server that does not let a client register itself.** Some services want you to get a client id from them
+first. Put it in the key `oauth` of that server's entry. The keys are `clientId`, `clientSecret`, `scopes`
+and `port`. You get the client id from the service. `port` is the port to listen on when the service wants a
+fixed address to come back to, `http://127.0.0.1:<port>/callback`; by default any free port is used. The
+secret stays in the settings file and is never copied anywhere else.
+
+```json
+{
+  "mcpServers": {
+    "tracker": {
+      "url": "https://example.com/tracker/mcp",
+      "oauth": { "clientId": "your-client-id", "scopes": ["read"], "port": 8765 }
+    }
+  }
+}
+```
+
+**What cannot be put behind onetool.** The connectors a host program signs in to itself cannot be put behind onetool.
+They live in the host program, not in a settings file. Only servers you list by address can be signed in to
+here.
+
+**What it speaks to.** For a sign-in, and only then, onetool speaks to the sign-in server that the listed
+server names. It writes nothing of OAuth itself: the official MCP package does all of it.
 
 ## Rules: allow, deny, ask
 
@@ -558,7 +628,13 @@ Standard output carries only MCP messages.
 - `not connected (bad entry:`, followed by a reason: the entry of that server in the settings file breaks a
   rule, for instance it has both `command` and `url`. Correct the entry.
 - `no answer in`, followed by a number of seconds (the reason reads `no answer in 30 seconds`): the server did
-  not list its tools in time. Make sure it starts, or raise `connectSeconds`.
+  not list its tools in time. Make sure it starts, or raise `connectSeconds`. It also covers the `login` that
+  waited for the browser: no browser came back in time. Run it again, with `--wait` if you need longer.
+- `sign in needed`, as `notes: sign in needed` in `search`, or in the message of a failed call: the server asks
+  for a sign-in and you have none, or it is no longer valid. Run the `login` command the message gives, in a
+  terminal. See "Signing in".
+- `the sign-in could not be started`: the server names no sign-in server, or does not let a client register
+  itself. Give it a client id in the key `oauth` of its entry. See "Signing in".
 
 Each of these lines has the form `onetool: server <name>: not connected (<reason>)`. A server that fails does
 not stop the others, and does not stop onetool.
@@ -617,10 +693,11 @@ tools, or with the reason it is not connected.
 
 - It does not change the settings file of another program.
 - It does not speak the old SSE transport of MCP, the one with two addresses.
-- It does not sign in by OAuth: a server that wants it is not connected.
+- It never opens a browser by itself. You sign in with `onetool login`, from a terminal (see "Signing in").
 - It does not connect again to a server that went away, and it does not follow a change of a server's list of
   tools. Both need a new start.
-- It writes its log; the file of the sequences, `sequences.jsonl`, in `~/.onetool`; the files of the library,
+- It writes its log; the sign-ins, one file per server, in the folder `~/.onetool/auth`; the file of the
+  sequences, `sequences.jsonl`, in `~/.onetool`; the files of the library,
   which are the programs that calls of `library.save` keep, their `stats.json` and their archive, in the
   library folders; and, only with the shell switched on, what programs
   write in the listed folders. It writes nothing else.

@@ -17,6 +17,7 @@ export const HEADINGS = [
   "Try it first",
   "Add onetool to your host program",
   "The settings file",
+  "Signing in",
   "Rules: allow, deny, ask",
   "The shell and files",
   "Folders and rules from the host program",

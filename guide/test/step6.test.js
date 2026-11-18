@@ -72,7 +72,7 @@ test("When something does not work holds the two new texts", () => {
 });
 
 test("What onetool does not do holds the sentence on the end of the jobs, and keeps the old texts", () => {
-  holds("What onetool does not do", "Jobs end when onetool ends.", "SSE", "OAuth", "approvals given during the session", "the permission mode", "hooks");
+  holds("What onetool does not do", "Jobs end when onetool ends.", "SSE", "approvals given during the session", "the permission mode", "hooks");
 });
 
 test("the sentences of the earlier sections stay, word for word", () => {

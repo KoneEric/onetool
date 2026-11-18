@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { allRows } from "./rows.js";
+import { createSignin } from "./signin.js";
 
 const str = { type: "string" };
 
@@ -85,22 +86,36 @@ function createServer() {
   return server;
 }
 
-const USAGE = "usage: node practice/src/server.js [--port <number> [--token <text>]]";
+const USAGE =
+  "usage: node practice/src/server.js [--port <number> [--token <text>] [--signin [--expires <seconds>] [--client <id> [--secret <text>]]]]";
 
-/** `{port, token}` from the arguments (`token` is `undefined` when not given); `undefined` when they are not a form of the usage. */
+const WITH_WORD = ["--port", "--token", "--expires", "--client", "--secret"];
+
+/**
+ * `{port, token, signin}` from the arguments (`port` and `token` are `undefined` when not given; `signin` is
+ * `undefined` or `{expires, client, secret}`); `undefined` when they are not a form of the usage.
+ */
 function parseArguments(argv) {
-  if (argv.length === 0) return { port: undefined, token: undefined };
-  if (argv.length % 2 !== 0 || argv.length > 4) return undefined;
   const given = {};
-  for (let i = 0; i < argv.length; i += 2) {
+  for (let i = 0; i < argv.length; i++) {
     const option = argv[i];
-    if ((option !== "--port" && option !== "--token") || Object.hasOwn(given, option)) return undefined;
-    given[option] = argv[i + 1];
+    if (Object.hasOwn(given, option)) return undefined;
+    if (option === "--signin") given[option] = true;
+    else if (WITH_WORD.includes(option) && i + 1 < argv.length) given[option] = argv[++i];
+    else return undefined;
   }
-  const { "--port": port, "--token": token } = given;
+  const { "--port": port, "--token": token, "--signin": signin, "--expires": expires, "--client": client, "--secret": secret } = given;
+  if (argv.length === 0) return { port: undefined, token: undefined, signin: undefined };
   if (port === undefined || !/^[0-9]+$/.test(port) || Number(port) > 65535) return undefined;
   if (token === "") return undefined;
-  return { port: Number(port), token };
+  if (signin === undefined) {
+    if (expires !== undefined || client !== undefined || secret !== undefined) return undefined;
+    return { port: Number(port), token, signin: undefined };
+  }
+  if (token !== undefined) return undefined;
+  if (expires !== undefined && (!/^[0-9]+$/.test(expires) || Number(expires) < 1 || Number(expires) > 86400)) return undefined;
+  if (client === "" || secret === "" || (secret !== undefined && client === undefined)) return undefined;
+  return { port: Number(port), token: undefined, signin: { expires: expires === undefined ? 3600 : Number(expires), client, secret } };
 }
 
 /** The header may reach us as Latin-1 text of the bytes a client wrote in UTF-8; both spellings of the token are accepted. */
@@ -120,8 +135,21 @@ async function serveRequest(req, res) {
   await transport.handleRequest(req, res);
 }
 
-function listen(port, token) {
+function listen(port, token, signin) {
+  const sign = signin === undefined ? undefined : createSignin(signin);
+  const mcp = (req, res) =>
+    serveRequest(req, res).catch(() => {
+      if (!res.headersSent) res.writeHead(500);
+      res.end();
+    });
   const httpServer = http.createServer((req, res) => {
+    if (sign !== undefined) {
+      sign.handle(req, res, () => mcp(req, res)).catch(() => {
+        if (!res.headersSent) res.writeHead(500);
+        res.end();
+      });
+      return;
+    }
     const path = (req.url ?? "").split("?")[0];
     if (path !== "/mcp") {
       res.writeHead(404).end();
@@ -131,10 +159,7 @@ function listen(port, token) {
       res.writeHead(401).end();
       return;
     }
-    serveRequest(req, res).catch(() => {
-      if (!res.headersSent) res.writeHead(500);
-      res.end();
-    });
+    mcp(req, res);
   });
   const cannot = () => {
     process.stderr.write(`practice: cannot listen on port ${port}\n`);
@@ -152,7 +177,7 @@ if (options === undefined) {
   process.stderr.write(`${USAGE}\n`);
   process.exit(2);
 } else if (options.port !== undefined) {
-  listen(options.port, options.token);
+  listen(options.port, options.token, options.signin);
 } else {
   const server = createServer();
   process.stdin.on("end", () => {

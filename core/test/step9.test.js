@@ -11,6 +11,7 @@ const pkg = () => JSON.parse(readRoot("package.json"));
 const lock = () => JSON.parse(readRoot("package-lock.json"));
 
 const FILES = [
+  "auth/src/",
   "bin/",
   "core/src/",
   "guide/pages/",

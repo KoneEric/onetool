@@ -83,7 +83,7 @@ test("When something does not work holds the four new texts", () => {
 });
 
 test("What onetool does not do holds the sentence on saving, names the library folders and archives, and keeps the old texts", () => {
-  holds("What onetool does not do", "Nothing is saved without a call of library.save.", "SSE", "OAuth", "Jobs end when onetool ends.");
+  holds("What onetool does not do", "Nothing is saved without a call of library.save.", "SSE", "Jobs end when onetool ends.");
   // assumed: "names the library folders and their archives" is checked as the words library and archive in the section
   const body = section("What onetool does not do").text;
   assert.ok(/\blibrary\b/i.test(body) && /\barchive/i.test(body), "the section does not name the library folders and their archives");

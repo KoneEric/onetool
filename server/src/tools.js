@@ -22,6 +22,7 @@ import {
   noJobMessage,
   runRequest,
   searchTools,
+  signInMessage,
   shellOffMessage,
   toolValue,
   withTrail,
@@ -29,10 +30,12 @@ import {
 import { LibraryError, checkSave, isProgramName } from "../../library/src/index.js";
 import { runProgram } from "../../sandbox/src/index.js";
 import { ShellError, editFile, readFile, realPlace, runCommand, writeFile } from "../../shell/src/index.js";
-import { isServerError } from "./connect.js";
+import { isServerError, isSignInFailure } from "./connect.js";
 import { toolsWith } from "./descriptions.js";
 import { makeLibrary } from "./library.js";
 import { makeRecords, refused } from "./record.js";
+
+const say = (line) => process.stderr.write(`${line}\n`);
 
 const answer = (settings, text, isError = false) => ({
   content: [{ type: "text", text: cutAnswer(text, settings.answerLimit) }],
@@ -53,8 +56,9 @@ const isPlainObject = (value) => typeof value === "object" && value !== null && 
  * `list()` (async) is what tools/list answers, `call(name, args)` answers tools/call. `ready` is set by the caller: a promise
  * that is settled once every connection is connected or given up. `server` is the `Server` that speaks to the host:
  * it is asked through it, once its capabilities are known. `host` (host.js) holds the folders and rules of the host.
+ * `settingsPath` is the full path of the settings file, for the message of a server that needs a sign-in.
  */
-export function makeTools(settings, connections, server, host) {
+export function makeTools(settings, connections, server, host, settingsPath) {
   const records = makeRecords(settings);
   const library = makeLibrary(settings, host, records);
   const self = {
@@ -65,11 +69,12 @@ export function makeTools(settings, connections, server, host) {
   let kept = {};
 
   const catalog = () => [
-    ...connections.map((connection) =>
-      connection.error === null
+    ...connections.map((connection) => {
+      if (connection.needed) return { server: connection.name, tools: [], signIn: true };
+      return connection.error === null
         ? { server: connection.name, tools: connection.tools }
-        : { server: connection.name, tools: [], error: connection.error },
-    ),
+        : { server: connection.name, tools: [], error: connection.error };
+    }),
     ...settings.bad.map(({ name, reason }) => ({ server: name, tools: [], error: `bad entry: ${reason}` })),
     ...(settings.shell === null
       ? []
@@ -257,7 +262,62 @@ export function makeTools(settings, connections, server, host) {
     }
   }
 
-  async function callTool(serverName, tool, args, signal, record, ms) {
+  const signInServers = connections.filter((connection) => connection.signIn);
+
+  async function tellHost() {
+    try {
+      await server.sendToolListChanged();
+    } catch {
+      // a failure of the sending is ignored
+    }
+  }
+
+  /** A call met a sign-in failure: the server is sign in needed, the line is written, and the host is told once for `told`. */
+  async function signInFailed(connection, told) {
+    if (connection.needed || connection.tools === null) return;
+    const closing = connection.goNeeded(connection.stamp());
+    say(`onetool: server ${connection.name}: sign in needed`);
+    if (!told.sent) {
+      told.sent = true;
+      await tellHost();
+    }
+    await closing;
+  }
+
+  /** What is done at the beginning of a call for one sign-in server; gives whether its state changed. */
+  async function pickUpOne(connection) {
+    const stamp = connection.stamp();
+    if (connection.needed) {
+      if (stamp === null || stamp === connection.stampTried) return false;
+      await connection.connect();
+      if (connection.needed) return false;
+      if (connection.error !== null) say(`onetool: server ${connection.name}: not connected (${connection.error})`);
+      return true;
+    }
+    if (connection.withSignIn && connection.tools !== null && stamp === null) {
+      const closing = connection.goNeeded(null);
+      say(`onetool: server ${connection.name}: sign in needed`);
+      await closing;
+      return true;
+    }
+    return false;
+  }
+
+  // the looks at the sign-in servers are made one pass after the other: a call that arrives while one is made waits for it
+  let looking = Promise.resolve();
+
+  async function lookAtSignIns() {
+    const changes = await Promise.all(signInServers.map((connection) => pickUpOne(connection).catch(() => false)));
+    if (changes.includes(true)) await tellHost();
+  }
+
+  const pickUp = () => {
+    if (signInServers.length === 0) return Promise.resolve();
+    looking = looking.then(lookAtSignIns, lookAtSignIns);
+    return looking;
+  };
+
+  async function callTool(serverName, tool, args, signal, record, ms, told) {
     if (serverName === "library") return callLibrary(tool, args, signal, record, ms);
     if (settings.shell !== null && serverName === "shell") return callShell(tool, args, signal, record, ms);
     const id = `${serverName}.${tool}`;
@@ -274,6 +334,10 @@ export function makeTools(settings, connections, server, host) {
       if (call !== null) byHost = hostSays(id, call, record);
     }
     const connection = connections.find((candidate) => candidate.name === serverName);
+    if (connection?.needed) {
+      if (byHost !== null) record.decision = "asked: not asked";
+      throw new Error(`${id} failed: ${signInMessage(connection.name, settingsPath)}`);
+    }
     if (!connection || !connection.connected) {
       if (byHost !== null) record.decision = "asked: not asked";
       throw new Error(`${id} failed: not connected`);
@@ -287,6 +351,10 @@ export function makeTools(settings, connections, server, host) {
     try {
       result = await connection.client.callTool({ name: tool, arguments: args }, undefined, { timeout: ms, signal });
     } catch (err) {
+      if (connection.signIn && isSignInFailure(err)) {
+        await signInFailed(connection, told);
+        throw new Error(`${id} failed: ${signInMessage(connection.name, settingsPath)}`);
+      }
       // an address has no process to end: what the server did not say itself is told in one fixed way
       if (connection.remote && !isServerError(err)) throw new Error(`${id} failed: no answer from the server`);
       throw new Error(`${id} failed: ${err?.message ?? String(err)}`);
@@ -323,8 +391,10 @@ export function makeTools(settings, connections, server, host) {
     const uses = [];
     const names = {};
     for (const connection of connections) {
-      if (connection.error === null) names[connection.name] = connection.tools.map((tool) => tool.name);
+      if (connection.needed) names[connection.name] = true;
+      else if (connection.error === null) names[connection.name] = connection.tools.map((tool) => tool.name);
     }
+    const told = { sent: false };
     const withShell = host.hasFolders();
     if (withShell) names.shell = SHELL_TOOLS.map((tool) => tool.name);
     // stops the commands and the open question of this program, once it has ended
@@ -336,7 +406,7 @@ export function makeTools(settings, connections, server, host) {
         callTool: async (serverName, tool, callArgs) => {
           const record = program.begin(serverName, tool, callArgs);
           try {
-            const value = await callTool(serverName, tool, callArgs, controller.signal, record, seconds * 1000 + 1000);
+            const value = await callTool(serverName, tool, callArgs, controller.signal, record, seconds * 1000 + 1000, told);
             program.resolved(record, value);
             return value;
           } catch (err) {
@@ -453,9 +523,11 @@ export function makeTools(settings, connections, server, host) {
 
   self.call = async (name, args) => {
     host.start();
-    if (name === "search") return search(args ?? {});
-    if (name === "run") return run(args ?? {});
-    throw new McpError(ErrorCode.InvalidParams, `unknown tool: ${name}`);
+    if (name !== "search" && name !== "run") throw new McpError(ErrorCode.InvalidParams, `unknown tool: ${name}`);
+    // a sign-in made or forgotten since the last call is picked up before anything else of the call
+    await self.ready;
+    await pickUp();
+    return name === "search" ? search(args ?? {}) : run(args ?? {});
   };
   return self;
 }

@@ -107,18 +107,19 @@ function checkLibrary(library) {
 function check(code, { tools, callTool, timeoutMs, memoryMb, shell, onProgress, signal, library, onLibrary }) {
   if (typeof code !== "string") throw new TypeError("code must be a string");
   if (typeof tools !== "object" || tools === null || Array.isArray(tools)) {
-    throw new TypeError("tools must be an object of arrays of strings");
+    throw new TypeError("tools must be an object of arrays of strings or the value true");
   }
   let named = false;
   for (const list of Object.values(tools)) {
-    if (!Array.isArray(list) || !list.every((name) => typeof name === "string")) {
-      throw new TypeError("tools must be an object of arrays of strings");
+    if (list === true) named = true;
+    else if (!Array.isArray(list) || !list.every((name) => typeof name === "string")) {
+      throw new TypeError("tools must be an object of arrays of strings or the value true");
     }
-    if (list.length > 0) named = true;
+    else if (list.length > 0) named = true;
   }
   if (typeof shell !== "boolean") throw new TypeError("shell must be true or false");
   if ((named || shell) && typeof callTool !== "function") {
-    throw new TypeError("callTool must be a function when tools names a tool or shell is true");
+    throw new TypeError("callTool must be a function when tools names a tool or a server given as true, or shell is true");
   }
   if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new TypeError("timeoutMs must be a finite number above 0");

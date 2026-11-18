@@ -99,7 +99,7 @@ test("When something does not work holds the three new texts", () => {
 });
 
 test("What onetool does not do holds what is not copied of the host program's permissions", () => {
-  holds("What onetool does not do", "approvals given during the session", "the permission mode", "hooks", "SSE", "OAuth");
+  holds("What onetool does not do", "approvals given during the session", "the permission mode", "hooks", "SSE");
 });
 
 // ---- ## Folders and rules from the host program -----------------------------------------------------------------

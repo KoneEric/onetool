@@ -58,6 +58,32 @@ const EXTRA_KEYS = ["shell", "trail", "log", "logFolder", "hostRules", "hostServ
 const isTexts = (list) => Array.isArray(list) && list.every((item) => typeof item === "string");
 const isObjectOfTexts = (value) => isObject(value) && Object.values(value).every((item) => typeof item === "string");
 
+const OAUTH_KEYS = ["clientId", "clientSecret", "scopes", "port"];
+
+/** The reason the `oauth` of an entry is not valid, or null when it is. */
+function oauthReason(oauth) {
+  if (!isObject(oauth) || typeof oauth.clientId !== "string" || oauth.clientId.trim() === "") return "oauth has no clientId";
+  const has = (key) => Object.hasOwn(oauth, key);
+  if (has("clientSecret") && (typeof oauth.clientSecret !== "string" || oauth.clientSecret === "")) {
+    return "oauth.clientSecret is not a text";
+  }
+  if (has("scopes") && !(Array.isArray(oauth.scopes) && oauth.scopes.every((scope) => typeof scope === "string" && /^\S+$/.test(scope)))) {
+    return "oauth.scopes is not a list of words";
+  }
+  if (has("port") && !isWhole(oauth.port, 1, 65535)) return "oauth.port is not a port";
+  if (Object.keys(oauth).some((key) => !OAUTH_KEYS.includes(key))) return "oauth has an unknown key";
+  return null;
+}
+
+/** The `oauth` of a usable entry as `servers` holds it: a new object with the keys the file has. */
+function oauthValue(oauth) {
+  const value = { clientId: oauth.clientId };
+  if (Object.hasOwn(oauth, "clientSecret")) value.clientSecret = oauth.clientSecret;
+  if (Object.hasOwn(oauth, "scopes")) value.scopes = [...oauth.scopes];
+  if (Object.hasOwn(oauth, "port")) value.port = oauth.port;
+  return value;
+}
+
 /** The reason an entry of mcpServers is unusable, or null when it is usable. */
 function badReason(name, entry, shellOn) {
   if (name.trim() === "") return "the name is empty";
@@ -74,6 +100,13 @@ function badReason(name, entry, shellOn) {
     }
     if (entry.type === "sse") return "the old SSE transport is not supported";
     if (has("headers") && !isObjectOfTexts(entry.headers)) return "headers is not an object of texts";
+    if (has("oauth")) {
+      const why = oauthReason(entry.oauth);
+      if (why !== null) return why;
+      if (has("headers") && Object.keys(entry.headers).some((key) => key.toLowerCase() === "authorization")) {
+        return "both oauth and an Authorization header";
+      }
+    }
     return null;
   }
   if (typeof entry.command !== "string" || entry.command === "") return "no command";
@@ -196,7 +229,11 @@ export function readSettings(path) {
   for (const [name, entry] of Object.entries(file.mcpServers)) {
     const reason = badReason(name, entry, shell !== null);
     if (reason !== null) bad.push({ name, reason });
-    else if (Object.hasOwn(entry, "url")) servers.push({ name, url: entry.url, headers: entry.headers ?? {} });
+    else if (Object.hasOwn(entry, "url")) {
+      const server = { name, url: entry.url, headers: entry.headers ?? {} };
+      if (Object.hasOwn(entry, "oauth")) server.oauth = oauthValue(entry.oauth);
+      servers.push(server);
+    }
     else servers.push({ name, command: entry.command, args: entry.args ?? [], env: entry.env ?? {} });
   }
   const { answerLimit, timeoutSeconds, connectSeconds, searchLimit, stateLimit, allow, deny, ask } = values;
@@ -297,6 +334,21 @@ function sentenceOf(description) {
   return sentence.length > 160 ? `${sentence.slice(0, 157)}...` : sentence;
 }
 
+/** Whether onetool may sign in to this server: at an address, with no Authorization header. */
+export function signsIn(entry) {
+  if (!isObject(entry)) throw new TypeError("signsIn takes an entry of settings.servers");
+  if (!Object.hasOwn(entry, "url")) return false;
+  return !Object.keys(entry.headers).some((key) => key.toLowerCase() === "authorization");
+}
+
+/** The text a program gets when it calls a tool of a server that needs a sign-in. */
+export function signInMessage(server, configPath) {
+  for (const value of [server, configPath]) {
+    if (typeof value !== "string" || value === "") throw new TypeError("signInMessage takes two texts that are not empty");
+  }
+  return `sign in needed: run "onetool login ${server} --config ${configPath}" in a terminal`;
+}
+
 export function toolLine(server, tool) {
   const schema = tool.inputSchema;
   const properties = isObject(schema?.properties) ? schema.properties : {};
@@ -345,9 +397,11 @@ export function searchTools(catalog, words, { limit = 10, programs = [] } = {}) 
   const query = typeof words === "string" ? words.trim() : "";
   if (query === "") {
     const lines = catalog.map((entry) =>
-      entry.error !== undefined && entry.error !== null
-        ? `${entry.server}: not connected (${entry.error})`
-        : `${entry.server}: ${entry.tools.length} tools`,
+      entry.signIn === true
+        ? `${entry.server}: sign in needed`
+        : entry.error !== undefined && entry.error !== null
+          ? `${entry.server}: not connected (${entry.error})`
+          : `${entry.server}: ${entry.tools.length} tools`,
     );
     if (programs.length > 0) lines.push(`library: ${programs.length} programs`);
     return lines.length === 0 ? "No server is listed." : lines.join("\n");

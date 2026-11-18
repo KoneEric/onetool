@@ -6,7 +6,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { SERVER, ROOT, CITIES, expectedRows } from "./helpers.js";
 
-export const USAGE = "usage: node practice/src/server.js [--port <number> [--token <text>]]";
+export const USAGE =
+  "usage: node practice/src/server.js [--port <number> [--token <text>] [--signin [--expires <seconds>] [--client <id> [--secret <text>]]]]";
 export const NAMES = ["rows", "count", "echo", "fail", "wipe"];
 
 const children = new Set();

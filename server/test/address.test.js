@@ -131,13 +131,16 @@ describe("a server at an address that is not connected", () => {
   const COULD_NOT = "far: not connected (could not connect)";
   const LINE_COULD_NOT = "onetool: server far: not connected (could not connect)";
 
+  // since step 10 (the meeting point of server, "Connecting a sign-in server"): a 401 at a server with no `Authorization` header is `sign in needed`
+  const SIGN_IN = "far: sign in needed";
+  const LINE_SIGN_IN = "onetool: server far: sign in needed";
   for (const status of [401, 403, 404, 500]) {
-    test(`an HTTP status that is not a success (${status}): could not connect, with nothing of the status or the address`, async () => {
+    test(`an HTTP status that is not a success (${status}): ${status === 401 ? "sign in needed" : "could not connect"}, with nothing of the status or the address`, async () => {
       const wwwAuth = status === 401 ? 'Bearer resource_metadata="http://127.0.0.1:9/.well-known/oauth-protected-resource"' : undefined;
       await withHttp({ status, wwwAuth }, async (server) => {
         const { answer, lines, stderr } = await failure(urlEntry(server, { "X-Key": "ZZZhdr" }));
-        assert.equal(answer, COULD_NOT);
-        assert.deepEqual(lines, [LINE_COULD_NOT]);
+        assert.equal(answer, status === 401 ? SIGN_IN : COULD_NOT);
+        assert.deepEqual(lines, [status === 401 ? LINE_SIGN_IN : LINE_COULD_NOT]);
         assertNoValue([answer, stderr], server);
         // no sign-in is done, and the old transport is not tried: only the POSTs of this transport reach the address
         for (const request of server.requests) {
@@ -147,6 +150,18 @@ describe("a server at an address that is not connected", () => {
       });
     });
   }
+
+  test("a 401 at a server with an Authorization header stays could not connect (it is no sign-in server)", async () => {
+    const wwwAuth = 'Bearer resource_metadata="http://127.0.0.1:9/.well-known/oauth-protected-resource"';
+    for (const name of ["Authorization", "authorization"]) {
+      await withHttp({ status: 401, wwwAuth }, async (server) => {
+        const { answer, lines, stderr } = await failure(urlEntry(server, { [name]: "Bearer ZZZhdr" }));
+        assert.equal(answer, COULD_NOT);
+        assert.deepEqual(lines, [LINE_COULD_NOT]);
+        assertNoValue([answer, stderr], server);
+      });
+    }
+  });
 
   test("nobody listens at the address: could not connect", async () => {
     const entry = { url: `http://127.0.0.1:${await freePort()}/mcp?key=ZZZkey`, headers: { "X-Key": "ZZZhdr" } };

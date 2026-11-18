@@ -16,6 +16,8 @@ describe("what other parts may call", () => {
         "SHELL_NO_FOLDERS",
         "SHELL_TOOLS",
         "SettingsError",
+        "signInMessage",
+        "signsIn",
         "ToolError",
         "askMessage",
         "askRefusal",

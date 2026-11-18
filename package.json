@@ -1,6 +1,6 @@
 {
   "name": "@koneeric/onetool",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "One MCP server that runs programs over all the others",
   "type": "module",
   "bin": {
@@ -21,6 +21,7 @@
     "test": "node --test \"*/test/**/*.test.js\""
   },
   "files": [
+    "auth/src/",
     "bin/",
     "core/src/",
     "guide/pages/",

@@ -97,6 +97,23 @@ function bootstrap(host) {
       });
     };
 
+  // A server given as `true`: every name that is a string is a tool, made when first asked for. `then` and
+  // `toJSON` are not, so that awaiting or serialising the object calls nothing; the object has no key of its own.
+  const everyName = (server) => {
+    const made = new Map();
+    return new Proxy(Object.create(null), {
+      get(target, name) {
+        if (typeof name !== "string" || name === "then" || name === "toJSON") return undefined;
+        let tool = made.get(name);
+        if (tool === undefined) {
+          tool = makeTool(server, name);
+          made.set(name, tool);
+        }
+        return tool;
+      },
+    });
+  };
+
   // The four names of `shell: true`: more ways to make a tool call of the server "shell", nothing else.
   const defineShell = () => {
     const callRead = makeTool("shell", "read");
@@ -282,11 +299,14 @@ function bootstrap(host) {
       const spec = parse(toolsJson);
       const tools = {};
       for (const server of Object.keys(spec)) {
-        const entry = {};
-        for (const tool of spec[server]) {
-          Object.defineProperty(entry, tool, {
-            value: makeTool(server, tool), writable: true, enumerable: true, configurable: true,
-          });
+        let entry = {};
+        if (spec[server] === true) entry = everyName(server);
+        else {
+          for (const tool of spec[server]) {
+            Object.defineProperty(entry, tool, {
+              value: makeTool(server, tool), writable: true, enumerable: true, configurable: true,
+            });
+          }
         }
         Object.defineProperty(tools, server, { value: entry, writable: true, enumerable: true, configurable: true });
       }

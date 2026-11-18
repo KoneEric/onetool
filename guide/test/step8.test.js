@@ -75,7 +75,6 @@ test("What onetool does not do names the file of the sequences, holds the senten
     "onetool has no model of its own.",
     "Nothing is saved without a call of library.save.",
     "SSE",
-    "OAuth",
     "Jobs end when onetool ends.",
   );
 });

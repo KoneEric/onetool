@@ -56,7 +56,7 @@ test("What onetool does not do: it no longer says it writes no file, and says wh
   assert.ok(/\blog\b/i.test(body), "no point on the log");
   assert.ok(body.includes("listed folders"), "no point on what programs write in the listed folders");
   assert.ok(/wall/i.test(body), "no point that it does not wall a shell command");
-  holds("What onetool does not do", "SSE", "OAuth");
+  holds("What onetool does not do", "SSE");
 });
 
 // ---- ## The shell and files --------------------------------------------------------------------------------------
