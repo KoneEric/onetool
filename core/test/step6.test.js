@@ -95,7 +95,7 @@ describe("step 6: backgroundSeconds and maxJobs in the settings file", () => {
       deny: [],
       ask: [],
       shell: null,
-      trail: false,
+      trail: true,
       log: true,
       logFolder: null,
       hostRules: true,

@@ -32,11 +32,10 @@ test("The settings file: four more rows hold shell, trail, log and logFolder, ea
   }
 });
 
-test("The settings file: the row of trail says on when the shell is on, off otherwise", () => {
-  // assumed: "says: on when the shell is on, off otherwise" is checked as the words on and off in the row
+test("The settings file: the row of trail says it is on by default", () => {
   const row = section("The settings file").lines.find((line) => line.startsWith("|") && line.includes("`trail`"));
   assert.ok(row, "no row for `trail`");
-  assert.ok(/\bon\b/i.test(row) && /\boff\b/i.test(row) && /shell/i.test(row), row);
+  assert.ok(/\|\s*on\s*\|\s*$/.test(row) && !/shell/i.test(row), row);
 });
 
 // ---- Try it first, When something does not work, What onetool does not do ---------------------------------------

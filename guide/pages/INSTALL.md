@@ -131,7 +131,7 @@ The keys of `onetool`, all optional:
 | `deny` | Patterns of the tools a program may not call | `[]` |
 | `ask` | Patterns of the tools the person is asked about before each call | `[]` |
 | `shell` | Switches the shell and files on for programs; its `folders`, the folders they may use, may be left out (see "The shell and files") | absent: the shell is off |
-| `trail` | `true` or `false`: whether the answer of `run` ends with one line per call the program made | on when the shell is on, off otherwise |
+| `trail` | `true` or `false`: whether the answer of `run` ends with one line per call the program made | on |
 | `log` | `true` or `false`: whether every call is written to the log file | `true` |
 | `logFolder` | The full path of the folder of the log files | absent: the folder `logs` of onetool's own folder |
 | `hostRules` | `true` or `false`: whether the host program's own permission rules are taken, only to tighten (see "Folders and rules from the host program") | on |
@@ -513,8 +513,7 @@ shell.read 0 ms refused
 
 With more than 20 calls, the first 20 are shown, then one line with the count of the rest. The trail counts in
 `answerLimit`, and it is what is kept when an answer is cut: the answer is cut before it. A program that made
-no call has no trail, unless a line of the library ends it. The key `trail` switches it on or off; its default is on when the shell is on and off
-otherwise, so the answers of a setup without the shell do not change.
+no call has no trail, unless a line of the library ends it. The key `trail` switches it on or off; it is on by default.
 
 A trail may end with a line of the library, in parentheses, after the lines of the calls: see "The library".
 

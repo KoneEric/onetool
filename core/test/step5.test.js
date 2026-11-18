@@ -71,10 +71,10 @@ describe("step 5: shell.folders may be left out", () => {
     assert.equal(settingsOf(withOnetool({ shell: {}, trail: false })).trail, false);
   });
 
-  test("the shell is still off when the key is absent: trail false, shell null", () => {
+  test("the shell is still off when the key is absent: trail true, shell null", () => {
     const got = settingsOf(withOnetool({ hostRules: false }));
     assert.equal(got.shell, null);
-    assert.equal(got.trail, false);
+    assert.equal(got.trail, true);
   });
 
   test("a server named `shell` is taken whenever the file has onetool.shell, with or without folders", () => {

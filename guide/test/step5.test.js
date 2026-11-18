@@ -57,7 +57,7 @@ test("The settings file: the twelve rows of before and the row of trail stay", (
     rowOf(key);
   }
   const trail = rowOf("trail");
-  assert.ok(/\bon\b/i.test(trail) && /\boff\b/i.test(trail) && /shell/i.test(trail), trail);
+  assert.ok(/\|\s*on\s*\|\s*$/.test(trail) && !/shell/i.test(trail), trail);
 });
 
 test("The settings file: the row of shell says that folders may be left out", () => {

@@ -90,7 +90,7 @@ describe("step 3: ask in the settings file", () => {
       deny: ["s.wipe"],
       ask: ["s.*"],
       shell: null,
-      trail: false,
+      trail: true,
       log: true,
       logFolder: null,
       hostRules: true,

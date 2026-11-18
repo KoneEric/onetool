@@ -125,7 +125,7 @@ export function readSettings(path) {
   const onetool = file.onetool === undefined ? {} : file.onetool;
   const values = {};
   let shell = null;
-  let trail = false;
+  let trail = true;
   let log = true;
   let logFolder = null;
   let hostRules = true;
@@ -154,7 +154,6 @@ export function readSettings(path) {
         problems.push(...found);
       }
     }
-    trail = shellOn;
     if (Object.hasOwn(onetool, "trail")) {
       if (isBoolean(onetool.trail)) trail = onetool.trail;
       else problems.push("onetool.trail: must be true or false");

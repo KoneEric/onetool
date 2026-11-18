@@ -33,11 +33,11 @@ describe("step 4: the exports", () => {
 });
 
 describe("step 4: shell, trail, log and logFolder in what readSettings returns", () => {
-  test("none of the four keys in the file: shell null, trail false, log true, logFolder null", () => {
+  test("none of the four keys in the file: shell null, trail true, log true, logFolder null", () => {
     for (const file of [{ mcpServers: {} }, withOnetool({}), withOnetool({ searchLimit: 3 })]) {
       const got = settingsOf(file);
       assert.equal(got.shell, null);
-      assert.equal(got.trail, false);
+      assert.equal(got.trail, true);
       assert.equal(got.log, true);
       assert.equal(got.logFolder, null);
     }
@@ -242,10 +242,10 @@ describe("step 4: shell", () => {
 });
 
 describe("step 4: trail, log and logFolder", () => {
-  test("trail: true by default when the file has shell, false when it has not", () => {
+  test("trail: true by default, with or without shell", () => {
     assert.equal(settingsOf(withOnetool({ shell: { folders: [ABS] } })).trail, true);
-    assert.equal(settingsOf(withOnetool({})).trail, false);
-    assert.equal(settingsOf(withOnetool({ log: false })).trail, false);
+    assert.equal(settingsOf(withOnetool({})).trail, true);
+    assert.equal(settingsOf(withOnetool({ log: false })).trail, true);
   });
 
   test("trail given wins over the default, both ways, with the shell on or off", () => {
