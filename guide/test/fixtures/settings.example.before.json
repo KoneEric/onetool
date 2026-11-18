@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "practice": { "command": "node", "args": ["practice/src/server.js"] }
+  },
+  "onetool": { "deny": ["practice.fail"], "ask": ["practice.wipe"] }
+}

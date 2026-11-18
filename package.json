@@ -1,0 +1,37 @@
+{
+  "name": "@koneeric/onetool",
+  "version": "0.1.0",
+  "description": "One MCP server that runs programs over all the others",
+  "type": "module",
+  "bin": {
+    "onetool": "bin/onetool.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KoneEric/onetool.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --test \"*/test/**/*.test.js\""
+  },
+  "files": [
+    "bin/",
+    "core/src/",
+    "guide/pages/",
+    "hosts/src/",
+    "library/src/",
+    "practice/src/",
+    "sandbox/src/",
+    "server/src/",
+    "shell/src/"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  }
+}
