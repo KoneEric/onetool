@@ -19,12 +19,10 @@ You list your own servers in a settings file. onetool connects to them and offer
 You need Node 22 or later. A host program starts onetool with one of these two commands:
 
 ```sh
-npx github:KoneEric/onetool
-# once published on npm, this one too:
 npx @koneeric/onetool
+# or straight from this repository:
+npx github:KoneEric/onetool
 ```
-
-Until it is published on npm, use the first.
 
 The one option is `--config`, the path of the settings file. Add this entry to the MCP settings of your host
 program:
@@ -34,7 +32,7 @@ program:
   "mcpServers": {
     "onetool": {
       "command": "npx",
-      "args": ["-y", "github:KoneEric/onetool", "--config", "/absolute/path/to/settings.json"]
+      "args": ["-y", "@koneeric/onetool", "--config", "/absolute/path/to/settings.json"]
     }
   }
 }
