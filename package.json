@@ -1,6 +1,6 @@
 {
   "name": "@koneeric/onetool",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "One MCP server that runs programs over all the others",
   "type": "module",
   "bin": {

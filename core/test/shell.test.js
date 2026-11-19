@@ -73,6 +73,7 @@ describe("step 4: shell, trail, log and logFolder in what readSettings returns",
       backgroundSeconds: 7200,
       maxJobs: 3,
       libraryCap: 50,
+      instructions: true,
     });
   });
 
@@ -103,6 +104,7 @@ describe("step 4: shell, trail, log and logFolder in what readSettings returns",
       "deny",
       "hostRules",
       "hostServers",
+      "instructions",
       "libraryCap",
       "log",
       "logFolder",

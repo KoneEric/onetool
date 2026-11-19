@@ -5,7 +5,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { quietProvider, signInStamp } from "../../auth/src/index.js";
-import { signsIn } from "../../core/src/index.js";
+import { keptTools, signsIn } from "../../core/src/index.js";
 
 /** The transport of the package, which also knows when the process of the server has ended. */
 class Transport extends StdioClientTransport {
@@ -137,7 +137,8 @@ export class Connection {
       if (got === "timeout") {
         error = `no answer in ${String(this.connectSeconds)} seconds`;
       } else {
-        tools = got;
+        // an entry with `tools` offers only those tools
+        tools = Object.hasOwn(this.entry, "tools") ? keptTools(got, this.entry.tools) : got;
       }
     } catch (err) {
       if (this.signIn && isSignInFailure(err)) {

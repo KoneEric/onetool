@@ -14,6 +14,7 @@ export const EXAMPLE = join(PAGES, "settings.example.json");
 
 export const HEADINGS = [
   "What you need",
+  "Start with onetool init",
   "Try it first",
   "Add onetool to your host program",
   "The settings file",
@@ -24,6 +25,7 @@ export const HEADINGS = [
   "Background jobs",
   "The library",
   "Tidying the library",
+  "Grouping the work",
   "The trail and the log",
   "When something does not work",
   "What onetool does not do",

@@ -22,6 +22,49 @@ This one command needs the network or npm's cache. After it, onetool itself open
 the address of a listed server that you gave as a `url`. Servers started by a command, such as the practice
 server, need no network at all.
 
+## Start with onetool init
+
+The first thing to do is run one command. In a terminal:
+
+```sh
+npx @koneeric/onetool init
+```
+
+From the repository, `node bin/onetool.js init` is the same command. It sets up your settings file, then ends by
+itself. It starts no server and connects to nothing.
+
+**The file.** It makes the settings file when it is not there, with no server in it:
+`~/.config/onetool/settings.json`. Give `--config` and a path to use another place. It never removes or changes what the file already holds.
+
+**Claude Code.** When the command `claude` is found on your machine, and the file has no server that is Claude
+Code, `init` proposes to add Claude Code as a server behind onetool. The answer by default is yes. What this
+gives: the assistant's programs can run commands and read, search and edit files through Claude Code's own
+tools. What it costs: Claude Code as a server asks no permission question: the rules of onetool are the control.
+
+Two options answer for you. `--yes` adds it without asking. `--no-claude` proposes nothing. With nobody to ask (no
+terminal) and no `--yes`, nothing is added, and the command says how to accept.
+
+**What it adds.** This, to the file:
+
+```json
+{
+  "mcpServers": {
+    "claude": { "command": "/absolute/path/to/claude", "args": ["mcp", "serve"], "tools": ["Bash", "Read", "Edit", "Write", "Grep", "Glob"] }
+  },
+  "onetool": { "hostServers": ["claude"] }
+}
+```
+
+The command is written with the full path where `claude` was found. The key `tools` keeps six of its tools,
+and closes no tool of the other servers. The key `hostServers` makes onetool apply the host program's own rules
+to them: see "Folders and rules from the host program".
+
+**The entry.** `init` ends by printing the entry to paste into your host program's MCP settings, with the full
+path of the settings file. It changes no file of your host program: you paste it yourself, as the next sections
+say.
+
+**Again.** Run it again on a file that has Claude Code already, and it proposes nothing and says so.
+
 ## Try it first
 
 You can try everything with no account and no network, from the root of the repository, once `npm ci` has run.
@@ -70,6 +113,8 @@ Your other servers move. Take each of them out of the host program's file and pu
 file instead. If you leave a server in both, the assistant still sees its tools twice: once by itself and once
 through onetool.
 
+`onetool init` prints this entry for you, with the full path of your settings file; you only paste it.
+
 Then start the host program again, so that it reads its settings.
 
 - **Claude desktop** reads `claude_desktop_config.json`. On macOS it is in
@@ -85,6 +130,9 @@ onetool uses only what the MCP standard defines, so nothing of it is special to 
 The settings file is JSON. It has two top-level keys: `mcpServers`, the servers onetool connects to, and
 `onetool`, its own options (optional). The names of servers are yours, but a name may not be empty and may
 not hold a dot.
+
+An entry may also have the key `tools`: the names of the tools of that server that onetool keeps. The others do
+not exist for `search` or for a program. It closes no tool of another server.
 
 A server is one of two kinds of entry. One is started by a command, with `command`, `args` and `env`; only
 `command` is required:
@@ -142,6 +190,7 @@ The keys of `onetool`, all optional:
 | `backgroundSeconds` | How long a job, a program started in the background, may take before it is stopped (see "Background jobs") | 7200 |
 | `maxJobs` | How many jobs may run at once; `0` lets none start | 3 |
 | `libraryCap` | The most saved programs one library holds (see "The library") | 50 |
+| `instructions` | `true` or `false`: whether onetool gives the host program its text for the session when it connects (see "Grouping the work") | on |
 
 The file is read once, at the start. To change it, end onetool and start it again (for a host program, start
 the host program again). A key of `onetool` that onetool does not know stops the start, with a line on
@@ -198,6 +247,9 @@ file is removed. Nothing is sent to the server.
 first. Put it in the key `oauth` of that server's entry. The keys are `clientId`, `clientSecret`, `scopes`
 and `port`. You get the client id from the service. `port` is the port to listen on when the service wants a
 fixed address to come back to, `http://127.0.0.1:<port>/callback`; by default any free port is used. The
+key `redirectHost` is the host name written in that address: `127.0.0.1` by default, or `localhost` for a
+service that wants `http://localhost:<port>/callback`. onetool listens on `127.0.0.1` either way, and you leave
+the key out unless the service asks for the name. The
 secret stays in the settings file and is never copied anywhere else.
 
 ```json
@@ -325,22 +377,20 @@ command started keeps running after it. The shell is built for macOS and Linux.
 ### Another way: Claude Code as a listed server
 
 Claude Code can itself be a listed server behind onetool. Started with `claude mcp serve`, it gives a program
-its tools as they are:
+its tools:
 
 ```json
 {
   "mcpServers": {
-    "claude": { "command": "claude", "args": ["mcp", "serve"] }
+    "claude": { "command": "claude", "args": ["mcp", "serve"], "tools": ["Bash", "Read", "Edit", "Write", "Grep", "Glob"] }
   },
-  "onetool": {
-    "allow": ["claude.Bash", "claude.Read", "claude.Edit", "claude.Write", "claude.Grep", "claude.Glob"],
-    "hostServers": ["claude"]
-  }
+  "onetool": { "hostServers": ["claude"] }
 }
 ```
 
 That server offers many more tools than you may want behind onetool (it names at least `Agent` and
-`WebFetch`), so the `allow` list keeps six.
+`WebFetch`), so the list `tools` keeps six. It closes no tool of the other servers, which a list `allow` would
+do. `onetool init` writes this for you: see "Start with onetool init".
 
 No permission question was shown in the try. The rules of onetool, `allow`, `deny` and `ask`, are therefore your
 control over these tools. `hostServers` makes onetool apply the `Bash`, `Read`, `Edit` and `Write` rules of
@@ -566,6 +616,50 @@ that shows no prompt changes nothing else: you ask for the same work in your own
 library, with its date. `library.restore(name)` brings the newest file of that name back, with its counts at
 zero. It is refused when a program of that name is saved, or when the library is at its cap.
 
+## Grouping the work
+
+onetool saves context only when one program does several steps: a program that makes one call saves nothing.
+So onetool leads the session to group its work. Put every step that needs no decision into one program.
+
+**The instructions.** When the host program connects, onetool gives it a text for the session, the
+instructions the MCP standard defines: 600 characters at most, the same whatever the servers. It asks the
+assistant to list the steps before the first `run`, to put every step that needs no decision into one program,
+to return only the small result needed to decide what comes next, to keep large results in `state`, and never
+to use `run` for one tool call when the next call is already known. Whether the assistant reads it is the host
+program's doing. `"instructions": false` switches the text off, and nothing else:
+
+```json
+{
+  "mcpServers": {
+    "practice": { "command": "node", "args": ["practice/src/server.js"] }
+  },
+  "onetool": { "instructions": false }
+}
+```
+
+**The line of the trail.** When three programs in a row, in the foreground, each made exactly one call, and
+nobody was asked a question in between, the trail of the third ends with this line. It is said again only after
+three more programs. A program that calls a saved program does not count.
+
+```
+(the last 3 programs each made one call: they could have been one program)
+```
+
+**The number.** `search` with no words ends with one line for the session. Nothing is shown before the first
+program. A low number of calls per program means the work is not grouped.
+
+```
+this session: 3 programs, 3 calls, 1.0 calls per program
+```
+
+**A paragraph to paste.** A host program that does not pass on the instructions of a server may still be told:
+paste this paragraph into the standing instructions of your assistant, the file or the setting where the host
+program keeps what the assistant is always told.
+
+```text
+When you use onetool, group the work. Before the first run, list the steps of the task. Put every step that needs no decision into one program: loops, filters, several tools. Return only the small result you need to decide what comes next, and keep large results in state. Never use run for one tool call when the next call is already known.
+```
+
 ## The trail and the log
 
 Every call a program makes through `run` is recorded, a tool of a listed server and a tool of the shell alike,
@@ -630,6 +724,8 @@ Standard output carries only MCP messages.
 - `no answer in`, followed by a number of seconds (the reason reads `no answer in 30 seconds`): the server did
   not list its tools in time. Make sure it starts, or raise `connectSeconds`. It also covers the `login` that
   waited for the browser: no browser came back in time. Run it again, with `--wait` if you need longer.
+- `nobody to ask`, said by `onetool init` when it proposes Claude Code and no terminal is there to answer: nothing
+  was added. Run the command the line gives, with `--yes`, or run `init` in a terminal.
 - `sign in needed`, as `notes: sign in needed` in `search`, or in the message of a failed call: the server asks
   for a sign-in and you have none, or it is no longer valid. Run the `login` command the message gives, in a
   terminal. See "Signing in".
@@ -696,7 +792,8 @@ tools, or with the reason it is not connected.
 - It never opens a browser by itself. You sign in with `onetool login`, from a terminal (see "Signing in").
 - It does not connect again to a server that went away, and it does not follow a change of a server's list of
   tools. Both need a new start.
-- It writes its log; the sign-ins, one file per server, in the folder `~/.onetool/auth`; the file of the
+- It writes its log; the settings file that `onetool init` is given, and only that one (see "Start with onetool
+  init"); the sign-ins, one file per server, in the folder `~/.onetool/auth`; the file of the
   sequences, `sequences.jsonl`, in `~/.onetool`; the files of the library,
   which are the programs that calls of `library.save` keep, their `stats.json` and their archive, in the
   library folders; and, only with the shell switched on, what programs

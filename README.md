@@ -16,7 +16,17 @@ You list your own servers in a settings file. onetool connects to them and offer
 
 ## Install
 
-You need Node 22 or later. A host program starts onetool with one of these two commands:
+You need Node 22 or later. The first thing to do is to run this command once:
+
+```sh
+npx @koneeric/onetool init
+```
+
+It makes the settings file, `~/.config/onetool/settings.json`, when it is not there. When the command `claude`
+is found on this machine, it proposes Claude Code as a server behind onetool. It then prints the entry to paste
+into the MCP settings of your host program. It takes `--config` to set up another settings file than that one.
+
+A host program starts onetool with one of these two commands:
 
 ```sh
 npx @koneeric/onetool

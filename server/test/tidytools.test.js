@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { withHost } from "./askhost.js";
-import { sleep } from "./helpers.js";
+import { ONE_CALL_NOTE, sleep } from "./helpers.js";
 import { jobsOf, viaCtx } from "./jobhelpers.js";
 import {
   COUNT,
@@ -263,8 +263,10 @@ describe("`library.read`", () => {
       const plain = await ran(ctx, 'await library.read("cityCount")');
       assert.ok(plain.text.startsWith(programText(CITY_COUNT)), plain.text);
       const trail = trailOf(plain.text);
-      assert.equal(trail.length, 2, plain.text);
+      // step 12: the third program of one call each in a row ends with the note of step 12
+      assert.equal(trail.length, 3, plain.text);
       assert.match(trail[1], okLine("library.read", String(programText(CITY_COUNT).length)));
+      assert.equal(trail[2], ONE_CALL_NOTE);
     });
   });
 

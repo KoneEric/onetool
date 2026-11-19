@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { fakeEntry, sleep, waitFor } from "./helpers.js";
+import { fakeEntry, sleep, waitFor, withoutSession } from "./helpers.js";
 import { NO_FOLDERS, NO_FOLDERS_ANSWER, NO_FOLDERS_LINE, ROOTS, put, settledWithin, shellOnly, waitInBarrier, withProgram, world } from "./stepfive.js";
 
 const answerRoots = (folders) => ({ roots: folders.map((folder) => ({ uri: pathToFileURL(folder).href })) });
@@ -359,7 +359,7 @@ describe("what follows the folders, for a program", () => {
       await waitInBarrier(host);
       host.setRoots([]);
       await waitFor(() => host.rootsRequests.length === 2, 3000, "the second reading");
-      assert.equal(await host.search(), `fake: 2 tools\n${NO_FOLDERS_LINE}`);
+      assert.equal(withoutSession(await host.search()), `fake: 2 tools\n${NO_FOLDERS_LINE}`);
       const second = await host.run("await tools.fake.barrier({}); typeof read");
       assert.deepEqual(second, { text: "undefined", isError: false }, "a program that starts without folders has no names");
       const out = JSON.parse((await first).text);
@@ -385,7 +385,7 @@ describe("what follows the folders, for a program", () => {
       await waitInBarrier(host);
       host.setRoots([w.A]);
       await waitFor(() => host.rootsRequests.length === 2, 3000, "the second reading");
-      assert.equal(await host.search(), "fake: 2 tools\nshell: 4 tools");
+      assert.equal(withoutSession(await host.search()), "fake: 2 tools\nshell: 4 tools");
       assert.deepEqual(await host.run("await tools.fake.barrier({}); typeof $"), { text: "function", isError: false });
       // the folders are there when its result is: shellOffMessage is not called
       assert.deepEqual(await first, { text: "The program failed: ReferenceError: $ is not defined", isError: true });

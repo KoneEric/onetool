@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { practiceEntry, settingsOf, sleep, tmpDir, writeSettings } from "./helpers.js";
+import { practiceEntry, settingsOf, sleep, tmpDir, writeSettings, withoutSession } from "./helpers.js";
 import { assertTrail, logText, splitTrail } from "./recordhelpers.js";
 import { LOGIN_USAGE, NEEDED_LINE, SECRET_MARKS, authPath, failedLine, runCommand, signIn, signOut, withPractice, withSignin } from "./signhelpers.js";
 
@@ -33,7 +33,7 @@ test("signing in through the real thing: ten points", async () => {
       const { tools } = await one.client.listTools();
       assert.deepEqual(tools.map((tool) => tool.name), ["run", "search"]);
       assert.equal(one.client.getServerCapabilities().tools.listChanged, true);
-      assert.equal(await one.search(), "practice: 5 tools\nfar: sign in needed");
+      assert.equal(withoutSession(await one.search()), "practice: 5 tools\nfar: sign in needed");
       assert.ok(one.stderrLines().includes(NEEDED_LINE), one.stderr());
       assert.equal((await practice.seen()).registrations, 0);
 
@@ -52,7 +52,7 @@ test("signing in through the real thing: ten points", async () => {
       keepTokens();
 
       // 4. the same onetool, not restarted
-      assert.equal(await one.search(), BOTH);
+      assert.equal(withoutSession(await one.search()), BOTH);
       assert.equal(one.changed(), 1);
       assert.equal(first(await one.run(COUNT)), "625");
 
@@ -77,7 +77,7 @@ test("signing in through the real thing: ten points", async () => {
       texts.push(out.stdout, out.stderr);
       assert.deepEqual([out.code, out.stdout, out.stderr], [0, "onetool: signed out of far\n", ""]);
       assert.equal(existsSync(authPath(H)), false);
-      assert.equal(await one.search(), "practice: 5 tools\nfar: sign in needed");
+      assert.equal(withoutSession(await one.search()), "practice: 5 tools\nfar: sign in needed");
       assert.equal(one.changed(), 2);
       const again = await signOut(S, H);
       texts.push(again.stdout, again.stderr);
@@ -87,12 +87,12 @@ test("signing in through the real thing: ten points", async () => {
       const signedAgain = await signIn(S, H);
       texts.push(signedAgain.stderr);
       keepTokens();
-      assert.equal(await one.search(), BOTH);
+      assert.equal(withoutSession(await one.search()), BOTH);
       await practice.forget();
       const forgotten = await one.run(COUNT);
       assert.equal(forgotten.isError, true);
       assert.equal(first(forgotten), failedLine(S));
-      assert.equal(await one.search(), "practice: 5 tools\nfar: sign in needed");
+      assert.equal(withoutSession(await one.search()), "practice: 5 tools\nfar: sign in needed");
       const settled = (await practice.seen()).refused;
       await sleep(1500);
       const later = await one.run(COUNT);

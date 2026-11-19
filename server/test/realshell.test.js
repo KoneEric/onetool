@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { BIN, PRACTICE, ROOT, textOf, tmpDir, writeSettings } from "./helpers.js";
+import { BIN, PRACTICE, ROOT, textOf, tmpDir, writeSettings, withoutSession } from "./helpers.js";
 import { OFF_HINT, failed, workFolder } from "./shellhelpers.js";
 
 /** The command, and a client of the package; `fn(client)` runs, and the client is closed after. */
@@ -79,6 +79,6 @@ test("the shell through the real thing", async () => {
       text: failed(`ReferenceError: $ is not defined ${OFF_HINT}`),
       isError: true,
     });
-    assert.equal(await search(client), "practice: 5 tools");
+    assert.equal(withoutSession(await search(client)), "practice: 5 tools");
   });
 });

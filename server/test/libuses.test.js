@@ -5,7 +5,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { rawOnetool, settingsOf, sleep, waitFor } from "./helpers.js";
+import { ONE_CALL_NOTE, rawOnetool, settingsOf, sleep, waitFor } from "./helpers.js";
 import { jobsOf, viaCtx } from "./jobhelpers.js";
 import {
   ARCHIVED,
@@ -267,7 +267,7 @@ describe("the sequence that is not saved", () => {
         assert.equal(lines[1], "--- calls ---");
         assert.match(lines[2], okLine("practice.count", "13"));
         if (i < 2) assert.equal(lines.length, 3, answer.text);
-        else assert.deepEqual(lines.slice(3), [SAVE_IT(3)], answer.text);
+        else assert.deepEqual(lines.slice(3), [SAVE_IT(3), ONE_CALL_NOTE], answer.text); // step 12: the third program of one call each in a row
       }
       for (const code of [countOf("Paris"), countOf("Brest")]) assert.equal(linesOf(await ran(ctx, code)).length, 3, "not at the fourth, nor later");
     });
@@ -281,7 +281,8 @@ describe("the sequence that is not saved", () => {
       assert.equal(linesOf(await ran(ctx, countOf("Lyon"))).length, 3, "the failed run did not count: this is the second");
       assert.equal(linesOf(await ran(ctx, ROWS_OF_NICE)).length, 3, "rows is another sequence");
       const third = await ran(ctx, countOf("Nice"));
-      assert.deepEqual(linesOf(third).slice(3), [SAVE_IT(3)]);
+      // step 12: the run that failed put the streak back to 0, so Lyon, rows and Nice are three in a row of one call each
+      assert.deepEqual(linesOf(third).slice(3), [SAVE_IT(3), ONE_CALL_NOTE]);
       assert.equal(linesOf(await ran(ctx, ROWS_OF_NICE)).length, 3, "rows has run twice");
     });
   });
@@ -292,11 +293,14 @@ describe("the sequence that is not saved", () => {
     await inLib(w, libSettings(), async (ctx) => {
       for (let i = 0; i < 3; i++) {
         const answer = await ran(ctx, ROWS_OF_NICE);
-        assert.deepEqual(linesOf(answer).slice(3), [SAME_AS("cityCount")], "each gets the note of the saved program, never the other");
+        // step 12: the third of three programs of one call each in a row has the note of step 12 after the other
+        const expected = i < 2 ? [SAME_AS("cityCount")] : [SAME_AS("cityCount"), ONE_CALL_NOTE];
+        assert.deepEqual(linesOf(answer).slice(3), expected, "each gets the note of the saved program, never the other");
       }
       assert.equal((await ran(ctx, 'await library.remove("cityCount")')).text.split("\n")[0], "lib.cityCount went to the archive of the user library.");
+      // step 12: after the note the streak is 0; the remove (one call) makes 1, the first run 2, the second 3: it says so
       assert.equal(linesOf(await ran(ctx, ROWS_OF_NICE)).length, 3);
-      assert.equal(linesOf(await ran(ctx, ROWS_OF_NICE)).length, 3);
+      assert.deepEqual(linesOf(await ran(ctx, ROWS_OF_NICE)).slice(3), [ONE_CALL_NOTE]);
       assert.deepEqual(linesOf(await ran(ctx, ROWS_OF_NICE)).slice(3), [SAVE_IT(3)]);
     });
   });
@@ -336,7 +340,9 @@ describe("the sequence that is not saved", () => {
       for (let i = 0; i < 5; i++) assert.deepEqual(await ran(ctx, "await lib.one()"), { text: "1", isError: false });
       for (let i = 0; i < 4; i++) {
         const answer = await ran(ctx, 'await write("a.txt", "x"); "done"');
-        assert.deepEqual([linesOf(answer)[0], linesOf(answer).length], ["done", 3], answer.text);
+        // step 12: the five programs with no call put the streak at 0; the third program of one call in a row has its note
+        assert.deepEqual([linesOf(answer)[0], linesOf(answer).length], ["done", i === 2 ? 4 : 3], answer.text);
+        if (i === 2) assert.equal(linesOf(answer)[3], ONE_CALL_NOTE);
       }
     });
   });

@@ -1,7 +1,7 @@
 // Step 2: servers reached at an address (the meeting point of server, "Step 2: servers reached at an address").
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { FAKE_TOOL_COUNT, alive, childrenOf, fakeEntry, okText, serverLines, settingsOf, textOf, waitFor, withOnetool, withRaw } from "./helpers.js";
+import { FAKE_TOOL_COUNT, alive, childrenOf, fakeEntry, okText, serverLines, settingsOf, textOf, waitFor, withOnetool, withRaw, withoutSession } from "./helpers.js";
 import { SECRET_BODY, freePort, httpServer, urlEntry, withHttp } from "./httpfixture.js";
 
 const FAR = (server, headers, onetool = {}) => settingsOf({ far: urlEntry(server, headers) }, { timeoutSeconds: 10, ...onetool });
@@ -371,7 +371,7 @@ describe("a call of a tool of a server at an address", () => {
             assert.equal(uncaught.isError, true);
             assert.equal(textOf(uncaught), "The program failed: Error: far.hello failed: no answer from the server");
             // it is still connected as far as search and the program are concerned
-            assert.equal(textOf(await ctx.call("search", {})), `far: ${HTTP_TOOLS} tools`);
+            assert.equal(withoutSession(textOf(await ctx.call("search", {}))), `far: ${HTTP_TOOLS} tools`);
             assert.equal(okText(await ctx.run("typeof tools.far.hello")), "function");
             const again = okText(await ctx.run(CAUGHT("tools.far.plain({})")));
             assert.ok(!again.includes("not connected"), again);
@@ -395,7 +395,7 @@ describe("a call of a tool of a server at an address", () => {
         const after = sent();
         assert.equal(okText(await ctx.run(CAUGHT("tools.far.hello({})"))), "far.hello failed: no answer from the server");
         assert.equal(sent(), after + 1, "the second call was tried");
-        assert.equal(textOf(await ctx.call("search", {})), `far: ${HTTP_TOOLS} tools`);
+        assert.equal(withoutSession(textOf(await ctx.call("search", {}))), `far: ${HTTP_TOOLS} tools`);
         const count = (method) => server.methods().filter((m) => m === method).length;
         assert.equal(count("initialize"), 1);
         assert.equal(count("tools/list"), 1);

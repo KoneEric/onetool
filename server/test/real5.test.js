@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { ElicitRequestSchema, ListRootsRequestSchema, ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
-import { BIN, PRACTICE, ROOT, sleep, textOf, writeSettings } from "./helpers.js";
+import { BIN, PRACTICE, ROOT, sleep, textOf, writeSettings, withoutSession } from "./helpers.js";
 import { logEntries, logText } from "./recordhelpers.js";
 import { NO_FOLDERS_ANSWER, NO_FOLDERS_LINE, UNKNOWN_HOST_LINE, countLine, hostDenial, hostQuestion, hostRefusal, put, unreadableLine, world } from "./stepfive.js";
 
@@ -146,7 +146,7 @@ test("step 5 through the real thing", async () => {
     // 13.
     const changedBefore = claude.listChanged;
     await claude.setRoots([]);
-    assert.equal(await claude.search(), `practice: 5 tools\n${NO_FOLDERS_LINE}`);
+    assert.equal(withoutSession(await claude.search()), `practice: 5 tools\n${NO_FOLDERS_LINE}`);
     const gone = await claude.describe();
     assert.ok(!SHELL_NAMES.some((one) => gone.includes(one)));
     await sleep(200);

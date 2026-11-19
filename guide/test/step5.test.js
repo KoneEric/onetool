@@ -192,11 +192,10 @@ test("Another way: one fenced block, the json block of the meeting point", () =>
   assert.equal(inside.blocks.length, 1, `${inside.blocks.length} fenced blocks`);
   assert.equal(inside.blocks[0].tag, "json");
   assert.deepEqual(JSON.parse(inside.blocks[0].text), {
-    mcpServers: { claude: { command: "claude", args: ["mcp", "serve"] } },
-    onetool: {
-      allow: ["claude.Bash", "claude.Read", "claude.Edit", "claude.Write", "claude.Grep", "claude.Glob"],
-      hostServers: ["claude"],
+    mcpServers: {
+      claude: { command: "claude", args: ["mcp", "serve"], tools: ["Bash", "Read", "Edit", "Write", "Grep", "Glob"] },
     },
+    onetool: { hostServers: ["claude"] },
   });
 });
 
@@ -206,12 +205,18 @@ test("Another way: readSettings reads the block, no bad entry, hostServers kept"
   const settings = readSettings(tmpFile("claude.json", block.text));
   assert.deepEqual(settings.bad, []);
   assert.deepEqual(settings.hostServers, ["claude"]);
-  assert.deepEqual(settings.servers, [{ name: "claude", command: "claude", args: ["mcp", "serve"], env: {} }]);
+  assert.deepEqual(settings.servers, [
+    { name: "claude", command: "claude", args: ["mcp", "serve"], env: {}, tools: ["Bash", "Read", "Edit", "Write", "Grep", "Glob"] },
+  ]);
 });
 
-test("Another way: the allow list, the question not shown, the rules, the host, which to prefer", () => {
+test("Another way: the tools list, the question not shown, the rules, the host, which to prefer", () => {
+  // since step 11 point 2 is about the key `tools` and `onetool init`, and the part no longer holds claude.Bash
   const text = another().lines.join("\n");
+  assert.ok(!text.includes("claude.Bash"), "the part still holds claude.Bash");
   for (const wanted of [
+    "`tools`",
+    "onetool init",
     "Agent",
     "WebFetch",
     "No permission question was shown in the try.",

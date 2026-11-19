@@ -69,9 +69,9 @@ test("the page holds the text steps/ nowhere", () => {
   assert.ok(!readPage().includes("steps/"));
 });
 
-test("the page keeps its fourteen headings of level 2", () => {
+test("the page keeps its sixteen headings of level 2", () => {
   const top = page().headings.filter((heading) => heading.level === 2);
-  assert.equal(top.length, 14);
+  assert.equal(top.length, 16);
 });
 
 // ---- four words no file of this part holds -----------------------------------------------------------------------

@@ -305,6 +305,18 @@ export async function withRaw(settings, fn, options) {
   }
 }
 
+// the line part `core` gives for three programs of one call each (the meeting point of core, "Step 12: ... `oneProgramNote`")
+export const ONE_CALL_NOTE = "(the last 3 programs each made one call: they could have been one program)";
+
+/**
+ * The answer of `search` with no words without its last line when that is the line of the session (the meeting point of server,
+ * "Step 12", "`search`, and the line of the session"): for the older checks that compare the lines of the catalog and of the library.
+ */
+export function withoutSession(text) {
+  const lines = text.split("\n");
+  return lines.at(-1).startsWith("this session: ") ? lines.slice(0, -1).join("\n") : text;
+}
+
 export function fileExists(path) {
   return existsSync(path);
 }

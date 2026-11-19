@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { FAKE_TOOL_COUNT, fakeEntry, okText, practiceEntry, settingsOf, textOf, tmpPath, waitFor, withOnetool } from "./helpers.js";
+import { FAKE_TOOL_COUNT, fakeEntry, okText, practiceEntry, settingsOf, textOf, tmpPath, waitFor, withOnetool, withoutSession } from "./helpers.js";
 
 const FAKE_ONLY = (onetool = {}) => settingsOf({ fake: fakeEntry() }, { timeoutSeconds: 10, ...onetool });
 
@@ -181,7 +181,7 @@ describe("a server whose process ends while onetool runs", () => {
         `fake.hello failed: not connected (last answer: ${last})`,
       );
       assert.equal(okText(await ctx.run("1 + 1")), "2");
-      assert.equal(textOf(await ctx.call("search", {})), `fake: ${FAKE_TOOL_COUNT} tools\npractice: 5 tools`);
+      assert.equal(withoutSession(textOf(await ctx.call("search", {}))), `fake: ${FAKE_TOOL_COUNT} tools\npractice: 5 tools`);
       assert.equal(okText(await ctx.run('await tools.practice.echo({ text: "still here" })')), "still here");
       assert.equal(readFileSync(startLog, "utf8").trim().split("\n").length, 1);
     });

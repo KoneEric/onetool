@@ -23,12 +23,12 @@ test("guide/pages holds the two files and nothing else", () => {
   assert.deepEqual(readdirSync(PAGES).sort(), ["INSTALL.md", "settings.example.json"]);
 });
 
-test("the page is UTF-8, has at most 860 lines (the meeting point of guide, 'Step 10': 860 since step 10), no tab and no carriage return", () => {
+test("the page is UTF-8, has at most 960 lines (the meeting point of guide, 'Step 11': 960 since step 11), no tab and no carriage return", () => {
   const bytes = readFileSync(PAGE);
   const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   // lines as split at \n; a last empty piece after the final \n is not a line
   const count = text.endsWith("\n") ? text.split("\n").length - 1 : text.split("\n").length;
-  assert.ok(count <= 860, `${count} lines`);
+  assert.ok(count <= 960, `${count} lines`);
   assert.ok(!text.includes("\t"), "a tab character");
   assert.ok(!text.includes("\r"), "a carriage return");
 });
@@ -39,7 +39,7 @@ test("the example settings file holds no tab", () => {
 
 // ---- headings ----------------------------------------------------------------------------------------------------
 
-test("the first line is the title, and the headings of level 1 and 2 are exactly the fourteen, in order", () => {
+test("the first line is the title, and the headings of level 1 and 2 are exactly the sixteen, in order", () => {
   const parsed = page();
   assert.equal(parsed.lines[0], "# Installing onetool");
   const top = parsed.headings.filter((heading) => heading.level <= 2);
@@ -195,7 +195,12 @@ test("the only host names are example.com and 127.0.0.1", () => {
     found.add(match[0].toLowerCase());
   }
   for (const match of text.matchAll(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g)) found.add(match[0]);
-  if (/\blocalhost\b/i.test(text)) found.add("localhost");
+  // since step 11 the word `localhost` stands in the page as text, in the section `Signing in`, and in no json block
+  const word = /\blocalhost\b/i;
+  const parsed = parsePage(text);
+  assert.ok(!word.test(jsonBlocks(parsed.blocks).map((block) => block.text).join("\n")), "localhost in a json block");
+  if (word.test(text)) assert.ok(word.test(sectionOf(parsed, "Signing in")?.text ?? ""), "localhost stands outside the section Signing in");
+  found.delete("localhost");
   for (const host of found) assert.ok(["example.com", "127.0.0.1"].includes(host), `host name ${host}`);
 });
 

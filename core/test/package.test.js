@@ -52,6 +52,11 @@ describe("what other parts may call", () => {
         "saveItNote",
         "sameAsNote",
         "archivedNote",
+        "keptTools",
+        "INSTRUCTIONS",
+        "nextStreak",
+        "oneProgramNote",
+        "sessionLine",
       ].sort(),
     );
   });

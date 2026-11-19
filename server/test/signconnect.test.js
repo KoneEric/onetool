@@ -5,7 +5,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { delimiter, dirname, join } from "node:path";
-import { LINE, fakeEntry, practiceEntry, settingsOf, sleep, tmpDir, withRaw, writeSettings } from "./helpers.js";
+import { LINE, fakeEntry, practiceEntry, settingsOf, sleep, tmpDir, withRaw, writeSettings, withoutSession } from "./helpers.js";
 import { urlEntry, withHttp } from "./httpfixture.js";
 import { assertShape, assertTrail, entriesOf, splitTrail } from "./recordhelpers.js";
 import {
@@ -244,7 +244,7 @@ describe("a sign-in that is there at the start", () => {
         assert.equal(host.needed(), 1);
         // only a write of the file makes it try again
         await signIn(path, home);
-        assert.equal(await host.search(), BOTH);
+        assert.equal(withoutSession(await host.search()), BOTH);
         assert.equal(host.changed(), 1);
       });
     });
@@ -263,7 +263,7 @@ describe("a sign-in made while onetool runs", () => {
         assert.equal(await host.search(), BOTH);
         assert.equal(host.changed(), 1, "told before the search was answered");
         assert.equal((await host.run(COUNT_LYON)).text, "625");
-        assert.equal(await host.search(), BOTH);
+        assert.equal(withoutSession(await host.search()), BOTH);
         await sleep(200);
         assert.equal(host.changed(), 1, "once");
         assert.equal(host.needed(), 1);
@@ -288,7 +288,7 @@ describe("a sign-in made while onetool runs", () => {
           await signIn(path, home);
           await host.call(name, args);
           assert.equal(host.changed(), 1, "told before the call was answered");
-          assert.equal(await host.search(), BOTH);
+          assert.equal(withoutSession(await host.search()), BOTH);
         });
       });
     });
@@ -328,7 +328,7 @@ describe("a sign-in made while onetool runs", () => {
         await sleep(200);
         assert.equal(host.changed(), 1);
         await signIn(path, home);
-        assert.equal(await host.search(), BOTH);
+        assert.equal(withoutSession(await host.search()), BOTH);
         assert.equal(host.changed(), 2);
         assert.equal((await host.run(COUNT_LYON)).text, "625");
       });
@@ -354,7 +354,7 @@ describe("a sign-in made while onetool runs", () => {
         assert.equal(host.changed(), 1, "once for the call of run, before it was answered");
         await waitNeeded(host);
         assert.equal(host.needed(), 1);
-        assert.equal(await host.search(), SIGN_IN_NEEDED);
+        assert.equal(withoutSession(await host.search()), SIGN_IN_NEEDED);
         await sleep(200);
         assert.equal(host.changed(), 1);
         assertNoSecret([host.stderr(), ...host.answers], practice);

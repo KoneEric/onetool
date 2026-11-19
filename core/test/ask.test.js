@@ -60,6 +60,7 @@ describe("step 3: ask in the settings file", () => {
       "deny",
       "hostRules",
       "hostServers",
+      "instructions",
       "libraryCap",
       "log",
       "logFolder",
@@ -98,6 +99,7 @@ describe("step 3: ask in the settings file", () => {
       backgroundSeconds: 7200,
       maxJobs: 3,
       libraryCap: 50,
+      instructions: true,
     });
   });
 

@@ -25,18 +25,19 @@ const COMMAND = "node /absolute/path/to/onetool/bin/onetool.js login notes --con
 
 // ---- the headings ------------------------------------------------------------------------------------------------
 
-test("the fourteen headings: the first four as before, then Signing in, then the nine others in their order", () => {
+test("the sixteen headings: the first five as in step 11, then Signing in, then the nine others in their order", () => {
   const top = page().headings.filter((heading) => heading.level === 2).map((heading) => heading.text);
-  assert.equal(top.length, 14);
-  assert.deepEqual(top.slice(0, 4), ["What you need", "Try it first", "Add onetool to your host program", "The settings file"]);
-  assert.equal(top[4], SIGNING);
-  assert.deepEqual(top.slice(5), [
+  assert.equal(top.length, 16);
+  assert.deepEqual(top.slice(0, 5), ["What you need", "Start with onetool init", "Try it first", "Add onetool to your host program", "The settings file"]);
+  assert.equal(top[5], SIGNING);
+  assert.deepEqual(top.slice(6), [
     "Rules: allow, deny, ask",
     "The shell and files",
     "Folders and rules from the host program",
     "Background jobs",
     "The library",
     "Tidying the library",
+    "Grouping the work",
     "The trail and the log",
     "When something does not work",
     "What onetool does not do",
@@ -129,9 +130,9 @@ test("Signing in: the connectors a host program signs in to itself", () => {
 
 // ---- the examples ------------------------------------------------------------------------------------------------
 
-test("there are at least thirteen json blocks in the page, each read by readSettings", () => {
+test("there are at least fifteen json blocks in the page, each read by readSettings", () => {
   const blocks = jsonBlocks(page().blocks);
-  assert.ok(blocks.length >= 13, `${blocks.length} json blocks`);
+  assert.ok(blocks.length >= 15, `${blocks.length} json blocks`);
   for (const block of blocks) {
     let settings;
     try {

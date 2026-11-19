@@ -20,6 +20,7 @@ function checkUrl(url) {
 function checkOauth(oauth) {
   if (oauth === undefined) return;
   if (!isObject(oauth) || typeof oauth.clientId !== "string") throw new TypeError("oauth must be an object with a string clientId");
+  if ("redirectHost" in oauth && oauth.redirectHost !== "127.0.0.1" && oauth.redirectHost !== "localhost") throw new TypeError("oauth.redirectHost must be 127.0.0.1 or localhost");
 }
 
 export function authFolder({ home = os.homedir() } = {}) {
@@ -184,18 +185,19 @@ export async function login({ name, url, oauth } = {}, { home = os.homedir(), wa
     };
 
     let port = 0;
+    const callback = () => `http://${oauth?.redirectHost ?? "127.0.0.1"}:${port}/callback`;
     let client;
     let verifier;
     let discovery;
     let tokens;
     const provider = {
       get redirectUrl() {
-        return `http://127.0.0.1:${port}/callback`;
+        return callback();
       },
       get clientMetadata() {
         return {
           client_name: "onetool",
-          redirect_uris: [`http://127.0.0.1:${port}/callback`],
+          redirect_uris: [callback()],
           grant_types: ["authorization_code", "refresh_token"],
           response_types: ["code"],
           token_endpoint_auth_method: oauth?.clientSecret !== undefined ? "client_secret_post" : "none",

@@ -168,6 +168,7 @@ describe("step 7: libraryCap in the settings file", () => {
       backgroundSeconds: 7200,
       maxJobs: 3,
       libraryCap: 7,
+      instructions: true,
     });
     assert.equal(settingsOf(withOnetool({ shell: {} })).trail, true);
   });

@@ -23,6 +23,7 @@ const DEFAULTS = {
   backgroundSeconds: 7200,
   maxJobs: 3,
   libraryCap: 50,
+  instructions: true,
 };
 
 const withServer = (entry) => ({ mcpServers: { s: entry } });
@@ -69,6 +70,7 @@ describe("readSettings: the whole file", () => {
       backgroundSeconds: 7200,
       maxJobs: 3,
       libraryCap: 50,
+      instructions: true,
     });
   });
 

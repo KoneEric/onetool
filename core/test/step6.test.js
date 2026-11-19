@@ -103,6 +103,7 @@ describe("step 6: backgroundSeconds and maxJobs in the settings file", () => {
       backgroundSeconds: 0.5,
       maxJobs: 0,
       libraryCap: 50,
+      instructions: true,
     });
   });
 

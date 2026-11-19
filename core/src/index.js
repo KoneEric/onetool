@@ -53,12 +53,12 @@ const ONETOOL_KEYS = {
   ask: { fallback: [], valid: isPatternList, problem: "must be a list of patterns" },
 };
 
-const EXTRA_KEYS = ["shell", "trail", "log", "logFolder", "hostRules", "hostServers", "backgroundSeconds", "maxJobs", "libraryCap"];
+const EXTRA_KEYS = ["shell", "trail", "log", "logFolder", "hostRules", "hostServers", "backgroundSeconds", "maxJobs", "libraryCap", "instructions"];
 
 const isTexts = (list) => Array.isArray(list) && list.every((item) => typeof item === "string");
 const isObjectOfTexts = (value) => isObject(value) && Object.values(value).every((item) => typeof item === "string");
 
-const OAUTH_KEYS = ["clientId", "clientSecret", "scopes", "port"];
+const OAUTH_KEYS = ["clientId", "clientSecret", "scopes", "port", "redirectHost"];
 
 /** The reason the `oauth` of an entry is not valid, or null when it is. */
 function oauthReason(oauth) {
@@ -71,6 +71,9 @@ function oauthReason(oauth) {
     return "oauth.scopes is not a list of words";
   }
   if (has("port") && !isWhole(oauth.port, 1, 65535)) return "oauth.port is not a port";
+  if (has("redirectHost") && oauth.redirectHost !== "127.0.0.1" && oauth.redirectHost !== "localhost") {
+    return "oauth.redirectHost is not 127.0.0.1 or localhost";
+  }
   if (Object.keys(oauth).some((key) => !OAUTH_KEYS.includes(key))) return "oauth has an unknown key";
   return null;
 }
@@ -81,8 +84,11 @@ function oauthValue(oauth) {
   if (Object.hasOwn(oauth, "clientSecret")) value.clientSecret = oauth.clientSecret;
   if (Object.hasOwn(oauth, "scopes")) value.scopes = [...oauth.scopes];
   if (Object.hasOwn(oauth, "port")) value.port = oauth.port;
+  if (Object.hasOwn(oauth, "redirectHost")) value.redirectHost = oauth.redirectHost;
   return value;
 }
+
+const isToolNames = (list) => Array.isArray(list) && list.every((name) => typeof name === "string" && name.trim() !== "");
 
 /** The reason an entry of mcpServers is unusable, or null when it is usable. */
 function badReason(name, entry, shellOn) {
@@ -107,11 +113,17 @@ function badReason(name, entry, shellOn) {
         return "both oauth and an Authorization header";
       }
     }
-    return null;
+    return toolsReason(entry);
   }
   if (typeof entry.command !== "string" || entry.command === "") return "no command";
   if (has("args") && !isTexts(entry.args)) return "args is not a list of texts";
   if (has("env") && !isObjectOfTexts(entry.env)) return "env is not an object of texts";
+  return toolsReason(entry);
+}
+
+/** The reason the `tools` of an entry is not valid, or null when it is (or the entry has none). */
+function toolsReason(entry) {
+  if (Object.hasOwn(entry, "tools") && !isToolNames(entry.tools)) return "tools is not a list of tool names";
   return null;
 }
 
@@ -166,6 +178,7 @@ export function readSettings(path) {
   let backgroundSeconds = 7200;
   let maxJobs = 3;
   let libraryCap = 50;
+  let instructions = true;
   if (!isObject(onetool)) {
     problems.push("onetool: not an object");
   } else {
@@ -221,6 +234,10 @@ export function readSettings(path) {
       if (isWhole(onetool.libraryCap, 1, 1000)) libraryCap = onetool.libraryCap;
       else problems.push("onetool.libraryCap: must be a whole number from 1 to 1000");
     }
+    if (Object.hasOwn(onetool, "instructions")) {
+      if (typeof onetool.instructions === "boolean") instructions = onetool.instructions;
+      else problems.push("onetool.instructions: must be true or false");
+    }
   }
   if (problems.length > 0) throw new SettingsError(problems);
 
@@ -229,15 +246,20 @@ export function readSettings(path) {
   for (const [name, entry] of Object.entries(file.mcpServers)) {
     const reason = badReason(name, entry, shell !== null);
     if (reason !== null) bad.push({ name, reason });
-    else if (Object.hasOwn(entry, "url")) {
-      const server = { name, url: entry.url, headers: entry.headers ?? {} };
-      if (Object.hasOwn(entry, "oauth")) server.oauth = oauthValue(entry.oauth);
+    else {
+      let server;
+      if (Object.hasOwn(entry, "url")) {
+        server = { name, url: entry.url, headers: entry.headers ?? {} };
+        if (Object.hasOwn(entry, "oauth")) server.oauth = oauthValue(entry.oauth);
+      } else {
+        server = { name, command: entry.command, args: entry.args ?? [], env: entry.env ?? {} };
+      }
+      if (Object.hasOwn(entry, "tools")) server.tools = [...entry.tools];
       servers.push(server);
     }
-    else servers.push({ name, command: entry.command, args: entry.args ?? [], env: entry.env ?? {} });
   }
   const { answerLimit, timeoutSeconds, connectSeconds, searchLimit, stateLimit, allow, deny, ask } = values;
-  return { servers, bad, answerLimit, timeoutSeconds, connectSeconds, searchLimit, stateLimit, allow, deny, ask, shell, trail, log, logFolder, hostRules, hostServers, backgroundSeconds, maxJobs, libraryCap };
+  return { servers, bad, answerLimit, timeoutSeconds, connectSeconds, searchLimit, stateLimit, allow, deny, ask, shell, trail, log, logFolder, hostRules, hostServers, backgroundSeconds, maxJobs, libraryCap, instructions };
 }
 
 // -- allow and deny ----------------------------------------------------------
@@ -334,6 +356,15 @@ function sentenceOf(description) {
   return sentence.length > 160 ? `${sentence.slice(0, 157)}...` : sentence;
 }
 
+/** The tools of a server that onetool keeps: all of them, or those whose name is in `keep`. */
+export function keptTools(tools, keep) {
+  if (!Array.isArray(tools)) throw new TypeError("keptTools takes a list of tools");
+  if (keep === undefined) return [...tools];
+  if (!Array.isArray(keep)) throw new TypeError("keptTools takes a list of names, or undefined");
+  const names = new Set(keep);
+  return tools.filter((tool) => names.has(tool.name));
+}
+
 /** Whether onetool may sign in to this server: at an address, with no Authorization header. */
 export function signsIn(entry) {
   if (!isObject(entry)) throw new TypeError("signsIn takes an entry of settings.servers");
@@ -393,7 +424,7 @@ function programScore(program, words) {
   return total;
 }
 
-export function searchTools(catalog, words, { limit = 10, programs = [] } = {}) {
+export function searchTools(catalog, words, { limit = 10, programs = [], session } = {}) {
   const query = typeof words === "string" ? words.trim() : "";
   if (query === "") {
     const lines = catalog.map((entry) =>
@@ -404,7 +435,9 @@ export function searchTools(catalog, words, { limit = 10, programs = [] } = {}) 
           : `${entry.server}: ${entry.tools.length} tools`,
     );
     if (programs.length > 0) lines.push(`library: ${programs.length} programs`);
-    return lines.length === 0 ? "No server is listed." : lines.join("\n");
+    const answer = lines.length === 0 ? "No server is listed." : lines.join("\n");
+    const line = session === undefined || session === null ? "" : sessionLine(session.programs, session.calls);
+    return line === "" ? answer : `${answer}\n${line}`;
   }
 
   const terms = query.toLowerCase().split(/\s+/);
@@ -587,6 +620,30 @@ export const sameAsNote = (name) => `(lib.${String(name)} does this: call it)`;
 
 export const archivedNote = (name, failures) =>
   `(lib.${String(name)} failed ${String(failures)} times in a row: it was moved to the archive)`;
+
+// -- the session -------------------------------------------------------------
+
+export const INSTRUCTIONS =
+  "onetool gives you two tools, run and search. It saves context only when one program does several steps. " +
+  "Before the first run, list the steps of the task. Put every step that needs no decision into one program: " +
+  "loops, filters, several tools. Return only the small result you need to decide what comes next. " +
+  "Keep large results in state and look at them in a later program. " +
+  "Never use run for one tool call when the next call is already known: put both calls in one program.";
+
+export function nextStreak(streak, program, { times = 3 } = {}) {
+  const counts = program.ok === true && program.calls === 1 && program.asked === false && program.lib === 0;
+  if (!counts) return { streak: 0, say: false };
+  if (streak + 1 >= times) return { streak: 0, say: true };
+  return { streak: streak + 1, say: false };
+}
+
+export const oneProgramNote = (times) =>
+  `(the last ${String(times)} programs each made one call: they could have been one program)`;
+
+export function sessionLine(programs, calls) {
+  if (programs === 0) return "";
+  return `this session: ${programs} programs, ${calls} calls, ${(calls / programs).toFixed(1)} calls per program`;
+}
 
 // -- state -------------------------------------------------------------------
 

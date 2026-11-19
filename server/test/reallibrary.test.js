@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { BIN, PRACTICE, ROOT, sleep, textOf, waitFor, writeSettings } from "./helpers.js";
+import { BIN, ONE_CALL_NOTE, PRACTICE, ROOT, sleep, textOf, waitFor, writeSettings, withoutSession } from "./helpers.js";
 import { logEntries, logText } from "./recordhelpers.js";
 import {
   ARCHIVED,
@@ -121,7 +121,7 @@ test("the library through the real thing: the user's library, the cap and the ru
     assert.match(countedLines[2], okLine("practice.rows"));
 
     // 4. search counts it, finds it first by a word, and the description names it
-    assert.equal(await host.search(), "practice: 5 tools\nlibrary: 1 programs");
+    assert.equal(withoutSession(await host.search()), "practice: 5 tools\nlibrary: 1 programs");
     assert.equal((await host.search("city")).split("\n")[0], "lib.cityCount({ city }) - Counts the rows of one city.");
     assert.ok((await host.description()).includes("Saved programs: 1 (most used: cityCount)"));
 
@@ -165,7 +165,9 @@ test("the library through the real thing: the user's library, the cap and the ru
       assert.equal(lines[0], "625");
       assert.equal(lines[1], "--- calls ---");
       assert.match(lines[2], okLine("practice.count", "13"));
-      if (time === 3) assert.deepEqual(lines.slice(3), [SAVE_IT(3)], answer.text);
+      // step 12: the programs of points 2 to 7 leave the streak at 1 (the one of the project's own text), so the second run is the third in a row
+      if (time === 2) assert.deepEqual(lines.slice(3), [ONE_CALL_NOTE], answer.text);
+      else if (time === 3) assert.deepEqual(lines.slice(3), [SAVE_IT(3)], answer.text);
       else assert.equal(lines.length, 3, `time ${time}: ${answer.text}`);
     }
 
@@ -184,7 +186,7 @@ test("the library through the real thing: the user's library, the cap and the ru
     putRaw(UL, "lyonShare.js", programText({ about: "Lyon, as a share.", code: LYON_SHARE_CODE }));
     assert.ok((await host.search("lyon")).split("\n").includes("lib.lyonShare() - Lyon, as a share."));
     putRaw(UL, "notes.js", "not a program");
-    assert.equal(await host.search(), "practice: 5 tools\nlibrary: 2 programs");
+    assert.equal(withoutSession(await host.search()), "practice: 5 tools\nlibrary: 2 programs");
     await host.search();
     const line = `onetool: library: ${join(UL, "notes.js")} is not a saved program, it is left out`;
     await waitFor(() => host.stderrLines().includes(line), 3000, "the line about notes.js");
@@ -238,12 +240,12 @@ test("the library through the real thing: the user's library, the cap and the ru
     assert.equal(linesOf(local)[0], "lib.local is saved in the project library.");
     assert.equal(existsSync(join(PL, "local.js")), true);
     assert.equal(existsSync(join(UL, "local.js")), false);
-    assert.equal(await host.search(), "practice: 5 tools\nshell: 4 tools\nlibrary: 3 programs");
+    assert.equal(withoutSession(await host.search()), "practice: 5 tools\nshell: 4 tools\nlibrary: 3 programs");
 
     // 17. the project's own cityCount wins, and is counted once
     putRaw(PL, "cityCount.js", programText({ about: "The project's own count.", params: ["city"], code: '"project"' }));
     assert.deepEqual(await host.run('await lib.cityCount({ city: "Lyon" })'), { text: "project", isError: false });
-    assert.ok((await host.search()).endsWith("library: 3 programs"));
+    assert.ok(withoutSession(await host.search()).endsWith("library: 3 programs"));
 
     // 18. a removal goes to the archive of the project's library
     const removed = await host.run('await library.remove("local")');

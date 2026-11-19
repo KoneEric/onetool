@@ -33,7 +33,11 @@ test("run 7: the library block of the page, a program saved and called, with HOM
     assert.equal(called.isError, false, called.text);
     assert.equal(called.text, "625");
 
-    assert.equal(await tried.search(), "practice: 5 tools\nlibrary: 1 programs");
+    // since step 12 (guide, "Step 12", "What changes in what is built"): the answer is three lines, the last the line of the session
+    assert.equal(
+      await tried.search(),
+      "practice: 5 tools\nlibrary: 1 programs\nthis session: 2 programs, 2 calls, 1.0 calls per program",
+    );
   } finally {
     await tried.close();
   }

@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { LINE, fakeEntry, okText, practiceEntry, settingsOf, textOf, withOnetool, withRaw } from "./helpers.js";
+import { LINE, fakeEntry, okText, practiceEntry, settingsOf, textOf, withOnetool, withRaw, withoutSession } from "./helpers.js";
 
 const WITH_PRACTICE = (onetool = { deny: ["practice.wipe"], timeoutSeconds: 10 }) =>
   settingsOf({ practice: practiceEntry() }, onetool);
@@ -205,7 +205,7 @@ describe("run: the answer", () => {
       assert.equal(res.isError, true);
       assert.equal(textOf(res), "The program was stopped after 0.5 seconds.");
       assert.equal(okText(await ctx.run("1 + 1")), "2");
-      assert.equal(textOf(await ctx.call("search", {})), "practice: 4 tools");
+      assert.equal(withoutSession(textOf(await ctx.call("search", {}))), "practice: 4 tools");
     });
   });
 

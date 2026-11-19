@@ -5,7 +5,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { alive, fakeEntry, settingsOf, textOf, waitFor, withOnetool } from "./helpers.js";
+import { alive, fakeEntry, settingsOf, textOf, waitFor, withOnetool, withoutSession } from "./helpers.js";
 import { WAITING_COMMAND, pidsIn, ran, workFolder } from "./shellhelpers.js";
 import { assertTrail, splitTrail } from "./recordhelpers.js";
 
@@ -187,7 +187,7 @@ describe("a trail", () => {
       const noCode = await ctx.call("run", {});
       assert.equal(noCode.isError, true);
       assert.equal(textOf(noCode), 'onetool: run needs "code", a text');
-      const search = textOf(await ctx.call("search", {}));
+      const search = withoutSession(textOf(await ctx.call("search", {})));
       assert.equal(search, `fake: ${NAMES.length} tools`);
       assert.ok(!search.includes("--- calls ---"));
       const bad = await ctx.call("search", { words: 5 });

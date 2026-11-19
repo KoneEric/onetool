@@ -19,7 +19,9 @@ import {
   jobStarted,
   jobState,
   nextState,
+  nextStreak,
   noJobMessage,
+  oneProgramNote,
   runRequest,
   searchTools,
   signInMessage,
@@ -45,6 +47,9 @@ const answer = (settings, text, isError = false) => ({
 // the decision of a call by the way a question ended
 const ASKED = { decline: "no", cancel: "no answer", unsupported: "cannot ask", failed: "failed" };
 
+// the decisions of a record that say a question reached the host
+const QUESTIONED = new Set(["asked: yes", "asked: no", "asked: no answer", "asked: failed"]);
+
 // the ended jobs kept, the lines of `progress` kept and how much of one
 const ENDED_KEPT = 20;
 const PROGRESS_KEPT = 10;
@@ -67,6 +72,9 @@ export function makeTools(settings, connections, server, host, settingsPath) {
   };
   // the kept state: one plain object for the life of the process
   let kept = {};
+  // the numbers of the session, and the streak of programs in the foreground that each made one call
+  const numbers = { programs: 0, calls: 0 };
+  let streak = 0;
 
   const catalog = () => [
     ...connections.map((connection) => {
@@ -95,7 +103,10 @@ export function makeTools(settings, connections, server, host, settingsPath) {
     await self.ready;
     await host.idle();
     const { programs } = await library.read();
-    return answer(settings, searchTools(visible(), words, { limit: settings.searchLimit, programs }));
+    return answer(
+      settings,
+      searchTools(visible(), words, { limit: settings.searchLimit, programs, session: { programs: numbers.programs, calls: numbers.calls } }),
+    );
   }
 
   // one question open at a time, for all the programs: each call takes its turn after the one before it
@@ -381,10 +392,10 @@ export function makeTools(settings, connections, server, host, settingsPath) {
 
   /**
    * One program, from the host's files to the kept state: what a program in the foreground and a job both do. `seconds` is
-   * its limit; `program` its records; `onProgress` and `signal` are the ones handed to `runProgram`. Gives the result, in
-   * which a state that was too large has made an error of an `ok` result.
+   * its limit; `program` its records; `onProgress` and `signal` are the ones handed to `runProgram`; `foreground` says that the
+   * program counts for the streak. Gives the result, in which a state that was too large has made an error of an `ok` result.
    */
-  async function execute(code, { seconds, program, onProgress, signal }) {
+  async function execute(code, { seconds, program, onProgress, signal, foreground = false }) {
     await host.refresh();
     // the program's library: read once, as it is when the program starts
     const saved = await library.read();
@@ -431,6 +442,15 @@ export function makeTools(settings, connections, server, host, settingsPath) {
       const final =
         next.problem !== null && result.ok ? { ok: false, error: { kind: "error", message: next.problem }, logs: result.logs } : result;
       program.notes.push(...(await library.finish({ library: saved, uses, code, ok: final.ok })));
+      // no wait from here to the end: the programs are counted one after the other, in the order their results were there
+      numbers.programs += 1;
+      numbers.calls += program.calls.length;
+      if (foreground) {
+        const asked = program.calls.some((record) => QUESTIONED.has(record.decision));
+        const next = nextStreak(streak, { ok: final.ok, calls: program.calls.length, asked, lib: uses.length });
+        streak = next.streak;
+        if (next.say) program.notes.push(oneProgramNote(3));
+      }
       return final;
     } finally {
       await program.close();
@@ -451,7 +471,7 @@ export function makeTools(settings, connections, server, host, settingsPath) {
     await self.ready;
     await host.idle();
     const program = records.program();
-    const result = await execute(code, { seconds: settings.timeoutSeconds, program, onProgress: () => {} });
+    const result = await execute(code, { seconds: settings.timeoutSeconds, program, onProgress: () => {}, foreground: true });
     return reply(formatRun(result, { timeoutSeconds: settings.timeoutSeconds }), !result.ok, program);
   }
 

@@ -11,10 +11,11 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import { readSettings, SettingsError } from "../../core/src/index.js";
+import { INSTRUCTIONS, readSettings, SettingsError } from "../../core/src/index.js";
 import { missingFolders } from "../../shell/src/index.js";
 import { Connection } from "./connect.js";
 import { makeHost } from "./host.js";
+import { runInit } from "./init.js";
 import { TIDY_DESCRIPTION, TIDY_NAME, TIDY_TEXT } from "./prompt.js";
 import { LOGIN_USAGE, LOGOUT_USAGE, parseSignArgs, runLogin, runLogout } from "./sign.js";
 import { makeTools } from "./tools.js";
@@ -53,6 +54,10 @@ async function signCommand(word, rest) {
 }
 
 export async function main(argv) {
+  if (argv[0] === "init") {
+    process.exitCode = await runInit(argv.slice(1));
+    return;
+  }
   if (argv[0] === "login" || argv[0] === "logout") return signCommand(argv[0], argv.slice(1));
   if (argv.length !== 2 || argv[0] !== "--config") {
     say(USAGE);
@@ -78,7 +83,13 @@ export async function main(argv) {
   const listChanged = settings.shell !== null && settings.shell.folders === null;
   // ... and so does what a sign-in server offers, once the person has signed in or out
   const signIns = connections.some((connection) => connection.signIn);
-  const server = new Server({ name: "onetool", version }, { capabilities: { tools: listChanged || signIns ? { listChanged: true } : {}, prompts: {} } });
+  const server = new Server(
+    { name: "onetool", version },
+    {
+      capabilities: { tools: listChanged || signIns ? { listChanged: true } : {}, prompts: {} },
+      ...(settings.instructions ? { instructions: INSTRUCTIONS } : {}),
+    },
+  );
   const host = makeHost(settings, server);
   const tools = makeTools(settings, connections, server, host, resolve(argv[1]));
 

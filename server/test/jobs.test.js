@@ -6,7 +6,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fakeEntry, settingsOf, sleep, textOf, tmpDir, waitFor, withOnetool, withRaw } from "./helpers.js";
+import { fakeEntry, settingsOf, sleep, textOf, tmpDir, waitFor, withOnetool, withRaw, withoutSession } from "./helpers.js";
 import { WAITING_COMMAND, pidsIn, shellSettings, workFolder } from "./shellhelpers.js";
 import { logEntries } from "./recordhelpers.js";
 import { hostDenial, put, shellOnly, withClaude, world } from "./stepfive.js";
@@ -200,7 +200,7 @@ describe("starting a job", () => {
       await jobs.start("1");
       await jobs.untilEnded("j1");
       await jobs.start(HANG);
-      assert.equal(textOf(await ctx.call("search", {})), before);
+      assert.equal(textOf(await ctx.call("search", {})), `${before}\nthis session: 1 programs, 0 calls, 0.0 calls per program`);
       assert.ok(!/\bj\d\b|job/i.test(before));
     });
   });

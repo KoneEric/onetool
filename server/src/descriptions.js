@@ -4,6 +4,7 @@ export const RUN_DESCRIPTION =
   "Runs a JavaScript program that calls the tools of the listed servers and gives back only what it returns or prints. " +
   "Call a tool as `await tools.<server>.<tool>(args)` (args an object); filter and count inside, so that only a small answer comes back. " +
   "The answer is the value of the last expression; `console.log` lines follow. " +
+  "Put every step that needs no decision into one program. " +
   "`state` is kept from one call to the next. " +
   "`background: true` starts a job and answers at once with its id; `progress(...)` posts a line. " +
   "Use `search` first to find tools.";

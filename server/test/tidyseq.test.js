@@ -5,7 +5,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { rawOnetool, settingsOf, sleep, waitFor } from "./helpers.js";
+import { ONE_CALL_NOTE, rawOnetool, settingsOf, sleep, waitFor } from "./helpers.js";
 import { jobsOf, viaCtx } from "./jobhelpers.js";
 import {
   COUNT,
@@ -68,7 +68,7 @@ describe("when a line is written", () => {
     await inLib(w, WITH_LOG(w), async (ctx) => {
       const answers = [];
       for (let time = 1; time <= 4; time++) answers.push(await ran(ctx, COUNT_PARIS));
-      assert.ok(answers[2].text.endsWith(SAVE_IT(3)), "the note of step 7 is what it was");
+      assert.deepEqual(answers[2].text.split("\n").slice(3), [SAVE_IT(3), ONE_CALL_NOTE], "the note of step 7 is what it was, then the note of step 12");
       const text = sequencesText(w);
       assert.ok(text.startsWith(held), "what the file held is kept, whole");
       const added = text.slice(held.length).split("\n");
@@ -115,7 +115,7 @@ describe("when a line is written", () => {
     await inLib(w, libSettings({ log: false }), async (ctx) => {
       const answers = [];
       for (let time = 1; time <= 4; time++) answers.push(await ran(ctx, COUNT_PARIS));
-      assert.deepEqual(answers.map((answer) => answer.text.split("\n").length), [3, 3, 4, 3]);
+      assert.deepEqual(answers.map((answer) => answer.text.split("\n").length), [3, 3, 5, 3]); // step 12: the third answer has the note of step 7 and then the note of step 12
       assert.equal(answers[2].text.split("\n")[3], SAVE_IT(3));
     });
     assert.deepEqual(names(w.H), [], "no file and no folder");
@@ -156,7 +156,7 @@ describe("a line that cannot be written", () => {
       assert.deepEqual(answers.map((answer) => [answer.isError, answer.text.split("\n").length, answer.text.split("\n")[0]]), [
         [false, 3, "625"],
         [false, 3, "625"],
-        [false, 4, "625"],
+        [false, 5, "625"], // step 12: the note of step 7 and then the note of step 12
       ]);
       assert.equal(answers[2].text.split("\n")[3], SAVE_IT(3));
       await waitFor(() => ctx.stderrLines().includes("onetool: the log cannot be written"), 5000, "the line about the log");
