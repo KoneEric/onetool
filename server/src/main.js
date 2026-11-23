@@ -54,6 +54,17 @@ async function signCommand(word, rest) {
 }
 
 export async function main(argv) {
+  if (argv[0] === "codex-server") {
+    if (argv.length !== 3 || argv[1] !== "--root") {
+      say("usage: onetool codex-server --root <project folder>");
+      process.exitCode = 2;
+      return;
+    }
+    const { serveCodex } = await import("./codex/server.js");
+    try { await serveCodex(argv[2], process.env.ONETOOL_CODEX_BIN || "codex"); }
+    catch (error) { say(error.message); process.exitCode = 1; }
+    return;
+  }
   if (argv[0] === "init") {
     process.exitCode = await runInit(argv.slice(1));
     return;

@@ -12,7 +12,7 @@ import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { runInit } from "../src/init.js";
 import { BIN, ROOT, textOf, tmpDir } from "./helpers.js";
 
-export const INIT_USAGE = "usage: onetool init [--config <settings file>] [--yes] [--no-claude]";
+export const INIT_USAGE = "usage: onetool init [--config <settings file>] [--yes] [--no-claude] [--codex <project folder>]";
 export const SERVER_USAGE = "usage: onetool --config <settings file>";
 export const SIX = ["Bash", "Read", "Edit", "Write", "Grep", "Glob"];
 export const PROPOSAL = [
