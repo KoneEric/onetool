@@ -26,6 +26,11 @@ It makes the settings file, `~/.config/onetool/settings.json`, when it is not th
 is found on this machine, it proposes Claude Code as a server behind onetool. It then prints the entry to paste
 into the MCP settings of your host program. It takes `--config` to set up another settings file than that one.
 
+To add Codex as a listed server from this checkout, run
+`node bin/onetool.js init --codex "/absolute/path/to/project"` after `npm ci`.
+It offers Bash, Read, Write, Edit, Grep, Glob and a GitHub repository lookup.
+See [Codex setup and examples](guide/pages/INSTALL.md#codex-as-a-listed-server).
+
 A host program starts onetool with one of these two commands:
 
 ```sh

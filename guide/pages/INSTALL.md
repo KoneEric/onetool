@@ -65,6 +65,59 @@ say.
 
 **Again.** Run it again on a file that has Claude Code already, and it proposes nothing and says so.
 
+### Codex as a listed server
+
+From this checkout, with Node 22+, Codex CLI, Bash and ripgrep (`rg`) on PATH:
+
+```sh
+npm ci
+node bin/onetool.js init --codex "/absolute/path/to/project"
+```
+
+The folder must exist. The command adds a server named `codex` to the default onetool settings,
+`~/.config/onetool/settings.json`. Use `--config /absolute/path/to/settings.json` to choose
+another file. Setup keeps existing servers, including Claude. If the name `codex` is already taken,
+setup leaves that entry in place. The entry points to this checkout and the Codex executable it
+found. Keep the checkout in place, or update the paths after moving it.
+
+Restart onetool. Run `search` with `words: "codex"` to see the tools.
+Your usual onetool allow, deny and ask rules apply to their names. For example, use
+`"ask": ["codex.Bash", "codex.Write", "codex.Edit"]` under `onetool` to require confirmation.
+When running Claude as the host, leave Codex out of `hostServers`, which is for Claude's own tools.
+
+| Tool | Example inside an onetool program | Result |
+| --- | --- | --- |
+| Bash | `await tools.codex.Bash({command:"git status --short"})` | stdout, stderr, exitCode |
+| Read | `await tools.codex.Read({file_path:"notes.txt"})` | content |
+| Write | `await tools.codex.Write({file_path:"notes.txt",content:"first draft"})` | file_path, bytes |
+| Edit | `await tools.codex.Edit({file_path:"notes.txt",old_string:"first",new_string:"second"})` | file_path, bytes |
+| Grep | `await tools.codex.Grep({pattern:"draft",glob:"*.txt"})` | matching lines in stdout |
+| Glob | `await tools.codex.Glob({pattern:"*.txt"})` | matching paths in stdout |
+| GitHubLookup | `await tools.codex.GitHubLookup({repository_full_name:"KoneEric/onetool"})` | repository metadata from the signed-in GitHub connection |
+
+These are the adapter's input fields. Read, Write and Edit work on regular UTF-8 files under the project;
+the parent directory must exist. Read and Edit accept files up to 1 MiB. Edit requires one literal match
+unless `replace_all: true`. Grep and Glob accept an optional `path` within the project and follow
+ripgrep's normal ignore rules. Bash starts in the project. Commands use Codex's `:workspace` permission
+profile. To select another installed profile (for example `:read-only`), set `ONETOOL_CODEX_PERMISSIONS`
+in the listed server's `env`. Bash has all access granted by that profile. Commands time out after 30 seconds.
+
+GitHubLookup uses the GitHub connection already signed in to Codex. It opens a temporary Codex chat and calls
+the repository lookup directly. It does not start a model turn. The adapter returns an error if the
+connection is unavailable or needs interactive approval. Connect GitHub in Codex before using it.
+
+**Test your installation.**
+
+With GitHub connected, run from the checkout:
+
+```sh
+ONETOOL_LIVE_CODEX=1 node --test server/test/codex.test.js
+```
+
+The live test creates a temporary settings file, calls all seven tools through onetool, checks the changed
+file on disk and checks the GitHub result. The ordinary test suite runs offline and skips this live check.
+Tested with Codex CLI 0.171.0-alpha.13 on macOS. The Codex app-server interface is experimental.
+
 ## Try it first
 
 You can try everything with no account and no network, from the root of the repository, once `npm ci` has run.

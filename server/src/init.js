@@ -1,11 +1,13 @@
 // The command `onetool init`: sets up the settings file and proposes Claude Code as a server behind onetool.
 import { accessSync, chmodSync, constants, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 
-export const INIT_USAGE = "usage: onetool init [--config <settings file>] [--yes] [--no-claude]";
+export const INIT_USAGE = "usage: onetool init [--config <settings file>] [--yes] [--no-claude] [--codex <project folder>]";
 
+const ONETOOL_BIN = fileURLToPath(new URL("../../bin/onetool.js", import.meta.url));
 const SIX = ["Bash", "Read", "Edit", "Write", "Grep", "Glob"];
 const PACKAGE_NAME = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).name;
 
@@ -19,6 +21,10 @@ export function parseInitArgs(argv) {
     if (option === "--config" && parsed.config === null) {
       if (i + 1 >= argv.length || argv[i + 1] === "") return null;
       parsed.config = argv[(i += 1)];
+    } else if (option === "--codex" && !parsed.codexRoot) {
+      const folder = argv[++i];
+      if (!folder || folder.startsWith("--")) return null;
+      parsed.codexRoot = resolve(folder);
     } else if (option === "--yes" && !parsed.yes) {
       parsed.yes = true;
     } else if (option === "--no-claude" && !parsed.noClaude) {
@@ -32,9 +38,13 @@ export function parseInitArgs(argv) {
 
 /** The place of `claude` in a text of folders, found by reading, never by starting anything; `null` when it is not found. */
 export function findClaude(pathText) {
+  return findCommand("claude", pathText);
+}
+
+function findCommand(name, pathText) {
   for (const item of pathText.split(delimiter)) {
     if (item === "") continue;
-    const candidate = join(resolve(item), "claude");
+    const candidate = join(resolve(item), name);
     try {
       if (!statSync(candidate).isFile()) continue;
       accessSync(candidate, constants.X_OK);
@@ -139,6 +149,12 @@ export async function runInit(
     return 1;
   };
 
+  let codex;
+  if (parsed.codexRoot) {
+    if (!statSync(parsed.codexRoot, { throwIfNoEntry: false })?.isDirectory()) return fault("Codex project folder does not exist");
+    codex = findCommand("codex", pathText);
+    if (!codex) return fault("codex was not found on PATH");
+  }
   let text;
   try {
     text = readText(P);
@@ -179,13 +195,29 @@ export async function runInit(
     }
   }
 
-  if (!parsed.noClaude) {
+  if (parsed.codexRoot) {
+    const entry = {
+      command: process.execPath,
+      args: [ONETOOL_BIN, "codex-server", "--root", parsed.codexRoot],
+      env: { ONETOOL_CODEX_BIN: codex },
+    };
+    if (Object.hasOwn(value.mcpServers, "codex")) {
+      out("onetool: init: kept the existing codex entry. To change its project, edit its --root argument.");
+    } else {
+      value.mcpServers.codex = entry;
+      try { rewrite(P, textOf(value)); } catch { return fault("cannot be written"); }
+      out(`onetool: init: added Codex for ${parsed.codexRoot}`);
+    }
+  } else if (!parsed.noClaude) {
     const code = await proposeClaude(P, value, parsed, { pathText, terminal, ask, out });
     if (code !== 0) return fault("cannot be written");
   }
 
   out("onetool: init: add this entry to the MCP settings of your host program:");
-  out(JSON.stringify({ mcpServers: { onetool: { command: "npx", args: ["-y", PACKAGE_NAME, "--config", P] } } }, null, 2));
+  const hostEntry = parsed.codexRoot
+    ? { command: process.execPath, args: [ONETOOL_BIN, "--config", P] }
+    : { command: "npx", args: ["-y", PACKAGE_NAME, "--config", P] };
+  out(JSON.stringify({ mcpServers: { onetool: hostEntry } }, null, 2));
   return 0;
 }
 

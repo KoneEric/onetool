@@ -49,6 +49,9 @@ function makeLog(settings, session, fail) {
  */
 export function makeRecords(settings) {
   const session = randomUUID();
+  const codexAdapters = new Set((settings.servers ?? [])
+    .filter((entry) => entry.args?.[1] === "codex-server" && entry.args[2] === "--root")
+    .map((entry) => entry.name));
   let told = false;
   const failed = () => {
     if (told) return;
@@ -75,6 +78,10 @@ export function makeRecords(settings) {
     const loggedArgs = (serverName, tool, args) => {
       if (serverName === "shell" && settings.shell !== null) return shellLogArgs(tool, args);
       if (serverName === "library") return logArgs(tool, args);
+      if (codexAdapters.has(serverName) && args) {
+        if (tool === "Write") return shellLogArgs("write", { path: args.file_path, text: args.content });
+        if (tool === "Edit") return shellLogArgs("edit", { path: args.file_path, old: args.old_string, new: args.new_string });
+      }
       return args;
     };
 
