@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { runCommand } from "./signhelpers.js";
-import { settingsOf, tmpDir, withRaw } from "./helpers.js";
+import { ROOT, settingsOf, tmpDir, withRaw } from "./helpers.js";
 import {
   ENTRY_HEAD,
   INIT_USAGE,
@@ -160,13 +160,18 @@ describe("a fault of the file, through the command", () => {
 });
 
 describe("the server command", () => {
-  test("it names itself onetool, with the version 0.3.0 of the root package file", async () => {
+  // Step 14 ("the server names itself with the version of the package file"): the number is read from the root package file, never held here.
+  test("it names itself onetool, with the version of the root package file, to the character", async () => {
+    const version = JSON.parse(read(join(ROOT, "package.json"))).version;
+    assert.match(version, /^\d+\.\d+\.\d+$/);
     await withRaw(settingsOf({}), async (raw) => {
       const answer = await raw.initialize();
       assert.deepEqual(answer.result.serverInfo.name, "onetool");
-      assert.equal(answer.result.serverInfo.version, "0.3.0");
+      assert.equal(answer.result.serverInfo.version, version);
       raw.child.stdin.end();
       assert.equal((await raw.within(5000)).code, 0);
+      for (const line of raw.lines) JSON.parse(line); // standard output carries MCP messages only
+      assert.equal(raw.stderr().includes(version), false, "nothing about the version on standard error");
     });
   });
 });

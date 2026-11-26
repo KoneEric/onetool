@@ -425,18 +425,18 @@ describe("step 11: keptTools(tools, keep)", () => {
   });
 });
 
-describe("step 11: the package file at version 0.3.0", () => {
+describe("step 11: the package file at version 0.4.0", () => {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
 
-  test("package.json has version 0.3.0", () => {
-    assert.equal(pkg.version, "0.3.0");
+  test("package.json has version 0.4.0", () => {
+    assert.equal(pkg.version, "0.4.0");
   });
 
-  test("the lock has 0.3.0 at the top and in packages['']", () => {
-    assert.equal(lock.version, "0.3.0");
-    assert.equal(lock.packages[""].version, "0.3.0");
+  test("the lock has 0.4.0 at the top and in packages['']", () => {
+    assert.equal(lock.version, "0.4.0");
+    assert.equal(lock.packages[""].version, "0.4.0");
   });
 
   test("files does not change: the ten entries of step 10, in that order", () => {
