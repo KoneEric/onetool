@@ -1,11 +1,28 @@
 // The command `onetool init`: sets up the settings file and proposes Claude Code as a server behind onetool.
-import { accessSync, chmodSync, constants, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { accessSync, appendFileSync, chmodSync, constants, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 
-export const INIT_USAGE = "usage: onetool init [--config <settings file>] [--yes] [--no-claude] [--codex <project folder>]";
+export const INIT_USAGE = "usage: onetool init [--config <settings file>] [--yes] [--no-claude] [--no-rules] [--codex <project folder>]";
+
+// the two paragraphs of standing instructions, and the two marker lines that hold them in a file of a host program
+export const STANDING_RULES =
+  "When you use onetool, group the work. Before the first run, list the steps of the task. Put every step that needs no decision into one program: loops, filters, several tools. " +
+  "Return only the small result you need to decide what comes next, and keep large results in state. Never use run for one tool call when the next call is already known." +
+  "\n\n" +
+  "Before the first call of a task, list every tool the task will need that is not loaded yet, and load them together in one request. " +
+  "Each extra request is one more model call that reads the whole context again.";
+export const RULES_BEGIN = "<!-- onetool: begin (added by onetool init) -->";
+export const RULES_END = "<!-- onetool: end -->";
+const RULES_BLOCK = `${RULES_BEGIN}\n${STANDING_RULES}\n${RULES_END}\n`;
+
+/** The known host programs, in the order of everything printed: its name, the command looked for, its file of standing instructions. */
+const HOST_PROGRAMS = [
+  { name: "Claude Code", command: "claude", file: (home) => join(home, ".claude", "CLAUDE.md") },
+  { name: "Codex", command: "codex", file: (home) => join(home, ".codex", "AGENTS.md") },
+];
 
 const ONETOOL_BIN = fileURLToPath(new URL("../../bin/onetool.js", import.meta.url));
 const SIX = ["Bash", "Read", "Edit", "Write", "Grep", "Glob"];
@@ -13,9 +30,9 @@ const PACKAGE_NAME = JSON.parse(readFileSync(new URL("../../package.json", impor
 
 const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** The arguments after `init`: `{ config, yes, noClaude }` (`config` is `null` when not given), or `null` when they are wrong. */
+/** The arguments after `init`: `{ config, yes, noClaude, noRules }` (`config` is `null` when not given), or `null` when they are wrong. */
 export function parseInitArgs(argv) {
-  const parsed = { config: null, yes: false, noClaude: false };
+  const parsed = { config: null, yes: false, noClaude: false, noRules: false };
   for (let i = 0; i < argv.length; i += 1) {
     const option = argv[i];
     if (option === "--config" && parsed.config === null) {
@@ -29,6 +46,8 @@ export function parseInitArgs(argv) {
       parsed.yes = true;
     } else if (option === "--no-claude" && !parsed.noClaude) {
       parsed.noClaude = true;
+    } else if (option === "--no-rules" && !parsed.noRules) {
+      parsed.noRules = true;
     } else {
       return null;
     }
@@ -112,22 +131,61 @@ function make(path, text) {
 
 const textOf = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
-/** Asks on standard output, reads one line of standard input, then lets go of it; `null` at the end of the input. */
-function askStdin(question) {
-  return new Promise((done) => {
-    process.stdout.write(question);
-    const lines = createInterface({ input: process.stdin });
-    let answered = false;
-    lines.once("line", (line) => {
-      answered = true;
-      lines.close();
-      process.stdin.pause();
-      done(line);
-    });
-    lines.once("close", () => {
-      if (!answered) done(null);
-    });
+/** The one reader of standard input: its lines wait in a queue, and `null` answers every call after the end of the input. */
+let reader = null;
+
+function stdinReader() {
+  if (reader !== null) return reader;
+  const lines = [];
+  const waiting = [];
+  let ended = false;
+  const input = createInterface({ input: process.stdin });
+  input.on("line", (line) => {
+    const next = waiting.shift();
+    if (next) next(line);
+    else lines.push(line);
   });
+  input.on("close", () => {
+    ended = true;
+    for (const next of waiting.splice(0)) next(null);
+  });
+  reader = {
+    next: () =>
+      new Promise((done) => {
+        if (lines.length > 0) return done(lines.shift());
+        if (ended) return done(null);
+        waiting.push(done);
+        input.resume();
+        process.stdin.resume();
+      }),
+    rest: () => {
+      // nothing keeps the process alive between two questions, nor after the last
+      input.pause();
+      process.stdin.pause();
+    },
+  };
+  return reader;
+}
+
+/** Asks on standard output and reads the next line of standard input; `null` at the end of the input. */
+async function askStdin(question) {
+  process.stdout.write(question);
+  const source = stdinReader();
+  const line = await source.next();
+  source.rest();
+  return line;
+}
+
+/** Whether the person said yes: empty, `y` or `yes`, trimmed and in lower case; anything else, `null` and an `ask` that rejects included, is no. */
+async function saysYes(ask, question) {
+  let answer;
+  try {
+    answer = await ask(question);
+  } catch {
+    answer = null;
+  }
+  const said = typeof answer === "string" ? answer.trim().toLowerCase() : null;
+  return said === "" || said === "y" || said === "yes";
 }
 
 const outDefault = (text) => process.stdout.write(`${text}\n`);
@@ -213,12 +271,66 @@ export async function runInit(
     if (code !== 0) return fault("cannot be written");
   }
 
+  const rulesFault = parsed.noRules ? false : await proposeRules(parsed, { home, pathText, terminal, ask, out, err });
+
   out("onetool: init: add this entry to the MCP settings of your host program:");
   const hostEntry = parsed.codexRoot
     ? { command: process.execPath, args: [ONETOOL_BIN, "--config", P] }
     : { command: "npx", args: ["-y", PACKAGE_NAME, "--config", P] };
   out(JSON.stringify({ mcpServers: { onetool: hostEntry } }, null, 2));
-  return 0;
+  return rulesFault ? 1 : 0;
+}
+
+/** "The proposal, one host program after the other". Gives whether a file of standing instructions could not be read or written. */
+async function proposeRules({ yes }, { home, pathText, terminal, ask, out, err }) {
+  let fault = false;
+  let nobody = false;
+  for (const host of HOST_PROGRAMS) {
+    if (findCommand(host.command, pathText) === null) continue;
+    const file = host.file(home);
+    let old = null;
+    try {
+      old = readFileSync(file);
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        err(`onetool: init: ${file}: cannot be read`);
+        fault = true;
+        continue;
+      }
+    }
+    if (old !== null && old.includes(RULES_BEGIN)) {
+      out(`onetool: init: ${file} already has the paragraphs of onetool, nothing is proposed`);
+      continue;
+    }
+    out(`onetool: init: ${host.name} can be told to group its work and to load its tools in one request: two paragraphs at the end of ${file}, its file of standing instructions.`);
+    if (!yes) {
+      if (terminal !== true) {
+        out(`onetool: init: nobody to ask, nothing is added to ${file}. To add the paragraphs, run the same command with --yes`);
+        nobody = true;
+        continue;
+      }
+      if (!(await saysYes(ask, `Add the two paragraphs to ${file}? [Y/n] `))) {
+        out(`onetool: init: nothing is added to ${file}`);
+        continue;
+      }
+    }
+    // one write, at the end of the file, in place: the old bytes stay, one empty line stands before the block
+    const gap = old === null || old.length === 0 ? "" : old.at(-1) === 0x0a ? "\n" : "\n\n";
+    try {
+      if (old === null) mkdirSync(dirname(file), { recursive: true });
+      appendFileSync(file, `${gap}${RULES_BLOCK}`);
+    } catch {
+      err(`onetool: init: ${file}: cannot be written`);
+      fault = true;
+      continue;
+    }
+    out(`onetool: init: added the two paragraphs to ${file}`);
+  }
+  if (nobody) {
+    out("onetool: init: the two paragraphs:");
+    out(STANDING_RULES);
+  }
+  return fault;
 }
 
 /** "`onetool init`: Claude Code". Gives 0, or 1 when the write failed. */
@@ -245,14 +357,7 @@ async function proposeClaude(P, value, { yes }, { pathText, terminal, ask, out }
       out(`onetool: init: nobody to ask, nothing is added. To add it, run: onetool init --config ${P} --yes`);
       return 0;
     }
-    let answer;
-    try {
-      answer = await ask(`Add the server claude to ${P}? [Y/n] `);
-    } catch {
-      answer = null;
-    }
-    const said = typeof answer === "string" ? answer.trim().toLowerCase() : null;
-    if (said !== "" && said !== "y" && said !== "yes") {
+    if (!(await saysYes(ask, `Add the server claude to ${P}? [Y/n] `))) {
       out("onetool: init: Claude Code is not added");
       return 0;
     }

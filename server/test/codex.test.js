@@ -43,7 +43,7 @@ test("Codex setup preserves existing servers and repeat setup preserves the chos
   writeFileSync(join(dir, "codex"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
   const original = { command: "original" };
   writeFileSync(path, JSON.stringify({ mcpServers: { claude: original } }));
-  const setup = () => execFileSync(process.execPath, [BIN, "init", "--config", path, "--codex", dir], { env: { ...process.env, PATH: dir } });
+  const setup = () => execFileSync(process.execPath, [BIN, "init", "--config", path, "--codex", dir], { env: { ...process.env, HOME: tmpDir(), PATH: dir } });
   setup();
   const contents = readFileSync(path, "utf8");
   const { mcpServers } = JSON.parse(contents);
@@ -57,7 +57,7 @@ test("Codex setup preserves existing servers and repeat setup preserves the chos
 test("live Codex through onetool: six tools and GitHub repository lookup", { skip: process.env.ONETOOL_LIVE_CODEX !== "1", timeout: 120_000 }, async () => {
   const root = tmpDir(), path = join(tmpDir(), "settings.json");
   writeFileSync(path, JSON.stringify({ mcpServers: {}, onetool: { log: false, trail: false } }));
-  execFileSync(process.execPath, [BIN, "init", "--config", path, "--codex", root]);
+  execFileSync(process.execPath, [BIN, "init", "--config", path, "--codex", root, "--no-rules"], { env: { ...process.env, HOME: tmpDir() } });
   const client = new Client({ name: "onetool-live-test", version: "1" });
   const transport = new StdioClientTransport({ command: process.execPath, args: [BIN, "--config", path], stderr: "inherit" });
   try {

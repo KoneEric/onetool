@@ -150,15 +150,16 @@ describe("step 12: INSTRUCTIONS", () => {
     "Before the first run, list the steps of the task. Put every step that needs no decision into one program: " +
     "loops, filters, several tools. Return only the small result you need to decide what comes next. Keep large " +
     "results in state and look at them in a later program. Never use run for one tool call when the next call is " +
-    "already known: put both calls in one program.";
+    "already known: put both calls in one program. " +
+    "When the host program loads tools on request, ask for run and search together, in one request.";
 
   test("it is exactly the text of the meeting point", () => {
     assert.equal(core.INSTRUCTIONS, TEXT);
   });
 
-  test("it is one line, 470 characters, and at most 600", () => {
+  test("it is one line, 565 characters, and at most 600", () => {
     assert.equal(typeof core.INSTRUCTIONS, "string");
-    assert.equal(core.INSTRUCTIONS.length, 470);
+    assert.equal(core.INSTRUCTIONS.length, 565);
     assert.ok(core.INSTRUCTIONS.length <= 600);
     assert.ok(!/[\r\n]/.test(core.INSTRUCTIONS));
   });

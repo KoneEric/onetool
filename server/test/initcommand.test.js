@@ -42,7 +42,7 @@ describe("onetool init, with no --config", () => {
     const H = tmpDir();
     const stand = standIn();
     const P = join(H, ".config", "onetool", "settings.json");
-    const r = await initProcess(["--yes"], { home: H, path: stand.dir });
+    const r = await initProcess(["--yes", "--no-rules"], { home: H, path: stand.dir });
     assert.equal(r.code, 0);
     assert.equal(r.stderr, "");
     const { said, entry } = splitOutput(r.stdout);
@@ -58,7 +58,7 @@ describe("onetool init, with no --config", () => {
     const before = read(join(H, ".claude", "settings.json"));
     const stand = standIn();
     const cwd = tmpDir();
-    const r = await initProcess(["--yes"], { home: H, path: stand.dir, cwd, ms: 10000 });
+    const r = await initProcess(["--yes", "--no-rules"], { home: H, path: stand.dir, cwd, ms: 10000 });
     assert.equal(r.code, 0);
     assert.equal(stand.started(), false, "the stand-in claude was started");
     assert.deepEqual(listing(H), [".claude", join(".claude", "settings.json"), ".config", join(".config", "onetool"), join(".config", "onetool", "settings.json")]);
@@ -85,7 +85,7 @@ describe("onetool init, with no --config", () => {
     const H = tmpDir();
     const stand = standIn();
     const P = join(H, ".config", "onetool", "settings.json");
-    const r = await initProcess([], { home: H, path: stand.dir });
+    const r = await initProcess(["--no-rules"], { home: H, path: stand.dir });
     assert.equal(r.code, 0);
     assert.deepEqual(splitOutput(r.stdout).said, [madeLine(P), ...PROPOSAL, nobodyLine(P), ENTRY_HEAD]);
     assert.equal(read(P), '{\n  "mcpServers": {}\n}\n');

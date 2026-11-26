@@ -1,18 +1,15 @@
 // Helpers of the tests of "Step 12: leading the session to group its work" (the meeting point of server): the texts that part `core`
 // fixes ("Step 12: `INSTRUCTIONS`", `oneProgramNote`, `sessionLine`), the programs of the examples, and a small client of `run`.
+import { INSTRUCTIONS } from "../../core/src/index.js";
 import { startHost } from "./askhost.js";
 import { libSettings } from "./libhelpers.js";
 import { ONE_CALL_NOTE } from "./helpers.js";
 
 export { ONE_CALL_NOTE };
 
-// the meeting point of core, "Step 12: `INSTRUCTIONS`": one line, 470 characters
-export const INSTRUCTIONS =
-  "onetool gives you two tools, run and search. It saves context only when one program does several steps. " +
-  "Before the first run, list the steps of the task. Put every step that needs no decision into one program: " +
-  "loops, filters, several tools. Return only the small result you need to decide what comes next. " +
-  "Keep large results in state and look at them in a later program. " +
-  "Never use run for one tool call when the next call is already known: put both calls in one program.";
+// the text of the instructions is part `core`'s: every check compares with what it exports (the meeting point of server, "Step 13: what every test of
+// this part sets", rule 3), so that the checks hold before and after part `core` adds its sentence
+export { INSTRUCTIONS };
 
 // the meeting point of server, "Step 12", "The description of `run`"
 export const SENTENCE = "Put every step that needs no decision into one program.";

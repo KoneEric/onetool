@@ -42,7 +42,7 @@ test("1, 2 and 3: init --yes with no --config, then the server command on a copy
   const { H, B, stand, P, hostFile } = world();
 
   // 1.
-  const first = await initProcess(["--yes"], { home: H, path: B });
+  const first = await initProcess(["--yes", "--no-rules"], { home: H, path: B });
   assert.equal(first.code, 0);
   assert.equal(first.stderr, "");
   const { said, entry } = splitOutput(first.stdout);
@@ -87,7 +87,7 @@ test("1, 2 and 3: init --yes with no --config, then the server command on a copy
 test("4: init --config on a path with nothing at it, no --yes: the proposal, the line to run, the file is { mcpServers: {} }", async () => {
   const { H, B, stand } = world();
   const S2 = join(tmpDir(), "settings.json");
-  const r = await initProcess(["--config", S2], { home: H, path: B });
+  const r = await initProcess(["--config", S2, "--no-rules"], { home: H, path: B });
   assert.equal(r.code, 0);
   assert.deepEqual(splitOutput(r.stdout).said, [madeLine(S2), ...PROPOSAL, nobodyLine(S2), ENTRY_HEAD]);
   assert.deepEqual(JSON.parse(read(S2)), { mcpServers: {} });
@@ -103,7 +103,7 @@ describe("5 and 6: init --yes on a file that holds a server, then a second time"
   test("the keys keep their order, the server is added last, the server command offers both, and a second init changes nothing", async () => {
     const { H, B } = world();
     const S3 = settingsAt(OLD(process.execPath));
-    const r = await initProcess(["--config", S3, "--yes"], { home: H, path: B });
+    const r = await initProcess(["--config", S3, "--yes", "--no-rules"], { home: H, path: B });
     assert.equal(r.code, 0, r.stderr);
     const after = JSON.parse(read(S3));
     assert.deepEqual(Object.keys(after.mcpServers), ["practice", "claude"]);
@@ -120,7 +120,7 @@ describe("5 and 6: init --yes on a file that holds a server, then a second time"
 
     // 6.
     const bytes = read(S3);
-    const second = await initProcess(["--config", S3, "--yes"], { home: H, path: B });
+    const second = await initProcess(["--config", S3, "--yes", "--no-rules"], { home: H, path: B });
     assert.equal(second.code, 0);
     assert.equal(read(S3), bytes);
     const { said, entry } = splitOutput(second.stdout);
@@ -142,7 +142,7 @@ test("7: with PATH set to an empty folder: exit 0, the line that claude was not 
 test("8: --no-claude with the stand-in in PATH: the file is { mcpServers: {} } and no line of standard output holds Claude Code", async () => {
   const { H, B, stand } = world();
   const S5 = join(tmpDir(), "settings.json");
-  const r = await initProcess(["--config", S5, "--no-claude"], { home: H, path: B });
+  const r = await initProcess(["--config", S5, "--no-claude", "--no-rules"], { home: H, path: B });
   assert.equal(r.code, 0);
   assert.deepEqual(JSON.parse(read(S5)), { mcpServers: {} });
   assert.ok(!r.stdout.split("\n").some((line) => line.includes("Claude Code")), r.stdout);
@@ -165,7 +165,7 @@ describe("9: the usage line, and a file that is not JSON", () => {
   test("init --config <S6> on a file whose text is not json: its line, exit code 1, the bytes as they were", async () => {
     const { H, B } = world();
     const S6 = settingsAt("not json");
-    const r = await initProcess(["--config", S6], { home: H, path: B });
+    const r = await initProcess(["--config", S6, "--no-rules"], { home: H, path: B });
     assert.equal(r.code, 1);
     assert.equal(r.stderr, `onetool: init: ${S6}: not JSON\n`);
     assert.equal(read(S6), "not json");

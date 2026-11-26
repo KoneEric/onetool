@@ -68,14 +68,14 @@ test("The settings file: the rows of before stay", () => {
 
 // ---- ## Grouping the work ----------------------------------------------------------------------------------------
 
-test("Grouping the work: at most 50 lines, its heading included", () => {
+test("Grouping the work: at most 85 lines, its heading included (50 before step 13)", () => {
   const lines = readPage().split("\n");
   const start = lines.indexOf(`## ${GROUPING}`);
   assert.ok(start >= 0, `no heading "## ${GROUPING}"`);
   let end = lines.findIndex((line, index) => index > start && /^## /.test(line));
   if (end < 0) end = lines.length;
   while (end > start && lines[end - 1].trim() === "") end -= 1;
-  assert.ok(end - start <= 50, `${end - start} lines`);
+  assert.ok(end - start <= 85, `${end - start} lines`);
 });
 
 test("Grouping the work: holds the sentence of the description of run", () => {
@@ -106,10 +106,13 @@ test("Grouping the work: the one json block is the block of the meeting point, a
   assert.equal(settings.instructions, false);
 });
 
-test("Grouping the work: the one fenced block with the tag text holds the paragraph to paste, white space aside", () => {
+// since step 13 the block holds two paragraphs (the meeting point of guide, "Step 13", "`## Grouping the work`: the points that change", point 6)
+test("Grouping the work: the one fenced block with the tag text holds the first paragraph to paste, then a second one, white space aside", () => {
   const texts = section(GROUPING).blocks.filter((block) => block.tag === "text");
   assert.equal(texts.length, 1, `${texts.length} blocks with the tag text`);
-  assert.equal(squeeze(texts[0].text), PASTE);
+  const pieces = texts[0].text.trim().split(/\n\s*\n/).map(squeeze);
+  assert.equal(pieces.length, 2, `${pieces.length} paragraphs`);
+  assert.equal(pieces[0], PASTE);
 });
 
 test("every json block of the page is read by readSettings with no problem, and there are at least fifteen", () => {

@@ -101,8 +101,9 @@ test("Start with onetool init: readSettings reads that block, no bad entry, tool
   ]);
 });
 
-test("Start with onetool init: the keys tools and hostServers, the section on the host program's rules, and no file of the host program", () => {
-  holds(START, "`tools`", "`hostServers`", FOLDERS, "changes no file of your host program");
+// since step 13 the text is `changes no settings file of your host program` (the meeting point of guide, "Step 13", "What changes in what is built")
+test("Start with onetool init: the keys tools and hostServers, the section on the host program's rules, and no settings file of the host program", () => {
+  holds(START, "`tools`", "`hostServers`", FOLDERS, "changes no settings file of your host program");
 });
 
 // ---- the places that changed -------------------------------------------------------------------------------------

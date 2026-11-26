@@ -62,9 +62,9 @@ describe("the arguments", () => {
   test("the options come in any order, and --yes with --no-claude together are valid: nothing is proposed", async () => {
     const stand = standIn();
     for (const order of [
-      (P) => ["--yes", "--no-claude", "--config", P],
-      (P) => ["--no-claude", "--config", P, "--yes"],
-      (P) => ["--config", P, "--no-claude", "--yes"],
+      (P) => ["--yes", "--no-claude", "--no-rules", "--config", P],
+      (P) => ["--no-claude", "--no-rules", "--config", P, "--yes"],
+      (P) => ["--config", P, "--no-claude", "--yes", "--no-rules"],
     ]) {
       const P = join(tmpDir(), "settings.json");
       const r = await runIn(order(P), { home: tmpDir(), pathText: stand.dir });
@@ -190,7 +190,7 @@ describe("something at the path: what is checked, in order", () => {
       if (content === null) mkdirSync(P);
       else writeFileSync(P, content, "utf8");
       const stand = standIn();
-      const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir, terminal: true });
+      const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir, terminal: true });
       assert.equal(r.code, 1);
       assert.deepEqual(r.err, [faultLine(P, reason)]);
       assert.deepEqual(r.out, []);
@@ -258,7 +258,7 @@ describe("a file that is found", () => {
       onetool: { log: false, deny: ["practice.wipe"] },
     });
     const before = readSettings(P).bad.length;
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.code, 0);
     const after = readSettings(P);
     assert.equal(after.bad.length, before);
@@ -281,7 +281,7 @@ describe("what a write keeps", () => {
   test("every key at every depth is still there, equal and in its order; the new ones come last; hostServers grows by one item", async () => {
     const stand = standIn();
     const P = settingsAt(JSON.stringify(OLD));
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.code, 0);
     const expected = structuredClone(OLD);
     expected.mcpServers.claude = claudeEntry(stand.place);
@@ -292,7 +292,7 @@ describe("what a write keeps", () => {
   test("a file with no onetool gets it last, with hostServers [claude]", async () => {
     const stand = standIn();
     const P = settingsAt({ extra: 1, mcpServers: { a: { command: "x" } }, after: 2 });
-    await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(
       read(P),
       textOfValue({ extra: 1, mcpServers: { a: { command: "x" }, claude: claudeEntry(stand.place) }, after: 2, onetool: { hostServers: ["claude"] } }),
@@ -302,7 +302,7 @@ describe("what a write keeps", () => {
   test("an onetool with no hostServers gets it last in it", async () => {
     const stand = standIn();
     const P = settingsAt({ mcpServers: {}, onetool: { log: false, deny: [] } });
-    await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(
       read(P),
       textOfValue({ mcpServers: { claude: claudeEntry(stand.place) }, onetool: { log: false, deny: [], hostServers: ["claude"] } }),
@@ -316,7 +316,7 @@ describe("what a write keeps", () => {
       [[], ["claude"]],
     ]) {
       const P = settingsAt({ mcpServers: {}, onetool: { hostServers: list } });
-      await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+      await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
       assert.equal(read(P), textOfValue({ mcpServers: { claude: claudeEntry(stand.place) }, onetool: { hostServers: expected } }));
     }
   });
@@ -324,7 +324,7 @@ describe("what a write keeps", () => {
   test("hostServers that holds claude already, with no entry of that name: nothing is added to it", async () => {
     const stand = standIn();
     const P = settingsAt({ mcpServers: { a: { command: "x" } }, onetool: { hostServers: ["x", "claude"] } });
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.code, 0);
     assert.equal(
       read(P),
@@ -335,7 +335,7 @@ describe("what a write keeps", () => {
   test("a file with no mcpServers and no onetool gets both, mcpServers first, in one valid file", async () => {
     const stand = standIn();
     const P = settingsAt({ b: 1 });
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.code, 0);
     assert.equal(
       r.out.join("\n"),
@@ -348,7 +348,7 @@ describe("what a write keeps", () => {
   test("the entry is added with the full path where claude was found, not the bare word", async () => {
     const stand = standIn();
     const P = join(tmpDir(), "settings.json");
-    await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     const written = JSON.parse(read(P));
     assert.equal(written.mcpServers.claude.command, stand.place);
     assert.ok(written.mcpServers.claude.command.startsWith("/"));
@@ -359,7 +359,7 @@ describe("what a write keeps", () => {
     const stand = standIn();
     const text = '{"mcpServers": {"a": {"command": "x"}},   "onetool": {}}';
     const P = settingsAt(text);
-    const r = await runIn(["--config", P], { home: tmpDir(), pathText: stand.dir, terminal: false });
+    const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: stand.dir, terminal: false });
     assert.equal(r.code, 0);
     assert.equal(r.out.join("\n"), wholeOut([foundLine(P), ...PROPOSAL, nobodyLine(P)], P));
     assert.equal(read(P), text);
@@ -376,7 +376,7 @@ describe("what it prints and does not do", () => {
       },
       onetool: { allow: ["allow-ZZZ.x"], deny: ["deny-ZZZ.x"], hostServers: ["host-ZZZ"] },
     });
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.code, 0);
     const all = [...r.out, ...r.err].join("\n");
     assert.ok(!all.includes("ZZZ"), all);
@@ -385,7 +385,7 @@ describe("what it prints and does not do", () => {
   test("no text given to out or err ends with a line break", async () => {
     const stand = standIn();
     const P = join(tmpDir(), "settings.json");
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--yes", "--no-rules"], { home: tmpDir(), pathText: stand.dir });
     for (const text of [...r.out, ...r.err]) assert.ok(!text.endsWith("\n"), JSON.stringify(text));
     const wrong = await runIn(["extra"], { home: tmpDir() });
     for (const text of [...wrong.out, ...wrong.err]) assert.ok(!text.endsWith("\n"), JSON.stringify(text));

@@ -60,8 +60,12 @@ and closes no tool of the other servers. The key `hostServers` makes onetool app
 to them: see "Folders and rules from the host program".
 
 **The entry.** `init` ends by printing the entry to paste into your host program's MCP settings, with the full
-path of the settings file. It changes no file of your host program: you paste it yourself, as the next sections
+path of the settings file. It changes no settings file of your host program: you paste it yourself, as the next sections
 say.
+
+**The standing instructions.** `init` also proposes to add two paragraphs to the file of standing instructions
+of Claude Code and of Codex, when it finds them on the machine. `--no-rules` proposes nothing of it. What the
+paragraphs say, and what `init` does with the files, is in "Grouping the work".
 
 **Again.** Run it again on a file that has Claude Code already, and it proposes nothing and says so.
 
@@ -79,6 +83,9 @@ The folder must exist. The command adds a server named `codex` to the default on
 another file. Setup keeps existing servers, including Claude. If the name `codex` is already taken,
 setup leaves that entry in place. The entry points to this checkout and the Codex executable it
 found. Keep the checkout in place, or update the paths after moving it.
+
+With `--codex` too, `init` proposes the two paragraphs of the standing instructions, and `--no-rules` proposes
+nothing of it: see "Grouping the work".
 
 Restart onetool. Run `search` with `words: "codex"` to see the tools.
 Your usual onetool allow, deny and ask rules apply to their names. For example, use
@@ -678,7 +685,8 @@ So onetool leads the session to group its work. Put every step that needs no dec
 instructions the MCP standard defines: 600 characters at most, the same whatever the servers. It asks the
 assistant to list the steps before the first `run`, to put every step that needs no decision into one program,
 to return only the small result needed to decide what comes next, to keep large results in `state`, and never
-to use `run` for one tool call when the next call is already known. Whether the assistant reads it is the host
+to use `run` for one tool call when the next call is already known. When the host program loads tools on request,
+it also asks the assistant to ask for `run` and `search` together, in one request. Whether the assistant reads it is the host
 program's doing. `"instructions": false` switches the text off, and nothing else:
 
 ```json
@@ -705,13 +713,36 @@ program. A low number of calls per program means the work is not grouped.
 this session: 3 programs, 3 calls, 1.0 calls per program
 ```
 
-**A paragraph to paste.** A host program that does not pass on the instructions of a server may still be told:
-paste this paragraph into the standing instructions of your assistant, the file or the setting where the host
-program keeps what the assistant is always told.
+**Two paragraphs to paste.** A host program that does not pass on the instructions of a server may still be
+told: paste these two paragraphs into the standing instructions of your assistant, the file or the setting where
+the host program keeps what the assistant is always told. The second is a general rule, true of every server and
+not of onetool only.
 
 ```text
 When you use onetool, group the work. Before the first run, list the steps of the task. Put every step that needs no decision into one program: loops, filters, several tools. Return only the small result you need to decide what comes next, and keep large results in state. Never use run for one tool call when the next call is already known.
+
+Before the first call of a task, list every tool the task will need that is not loaded yet, and load them together in one request. Each extra request is one more model call that reads the whole context again.
 ```
+
+**One request.** Some host programs do not load a tool until the assistant asks for it. Each request is one more
+model call that reads the whole context again, so an assistant that asks for `search` and then for `run` pays
+twice before it has done anything. In Claude Code, `select:A,B,C` is what the assistant types in the tool search
+to load the tools `A`, `B` and `C` together.
+
+**`onetool init` proposes them.** Instead of pasting, run `onetool init`. The file of standing instructions of
+Claude Code is `~/.claude/CLAUDE.md`, and that of Codex is `~/.codex/AGENTS.md`. `init` proposes the two paragraphs
+for each of the two that it finds on the machine, one question per file, and the answer by default is yes. On yes,
+the two paragraphs are added at the end of the file, between two marker lines. The file is made when it is not
+there, and nothing else of it is changed.
+
+```
+<!-- onetool: begin (added by onetool init) -->
+<!-- onetool: end -->
+```
+
+`--yes` answers yes and `--no-rules` proposes nothing. With nobody to ask, nothing is added and the paragraphs
+are printed. Run again on a file that holds the marker lines, `init` proposes nothing and says so. To undo it,
+remove those two lines and what is between them.
 
 ## The trail and the log
 
@@ -846,7 +877,8 @@ tools, or with the reason it is not connected.
 - It does not connect again to a server that went away, and it does not follow a change of a server's list of
   tools. Both need a new start.
 - It writes its log; the settings file that `onetool init` is given, and only that one (see "Start with onetool
-  init"); the sign-ins, one file per server, in the folder `~/.onetool/auth`; the file of the
+  init"); the files of standing instructions `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, only on your yes to
+  `onetool init`, at the end of the file; the sign-ins, one file per server, in the folder `~/.onetool/auth`; the file of the
   sequences, `sequences.jsonl`, in `~/.onetool`; the files of the library,
   which are the programs that calls of `library.save` keep, their `stats.json` and their archive, in the
   library folders; and, only with the shell switched on, what programs

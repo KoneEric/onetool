@@ -58,7 +58,7 @@ describe("an entry is Claude Code", () => {
       const stand = standIn();
       const text = JSON.stringify({ mcpServers: c.mcpServers, ...(c.onetool === undefined ? {} : { onetool: c.onetool }) });
       const P = settingsAt(text);
-      const r = await runIn(["--config", P], { home: tmpDir(), pathText: stand.dir, terminal: true });
+      const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: stand.dir, terminal: true });
       assert.equal(r.code, 0);
       assert.equal(r.out.join("\n"), wholeOut([foundLine(P), alreadyLine(P, "k" in c.mcpServers ? "k" : "mine")], P));
       assert.deepEqual(r.asked, []);
@@ -70,7 +70,7 @@ describe("an entry is Claude Code", () => {
     test(`${c.name}: it is not Claude Code, so with no claude on the PATH the line says it was not found`, async () => {
       const text = JSON.stringify({ mcpServers: c.mcpServers, ...(c.onetool === undefined ? {} : { onetool: c.onetool }) });
       const P = settingsAt(text);
-      const r = await runIn(["--config", P], { home: tmpDir(), pathText: tmpDir() });
+      const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: tmpDir() });
       assert.equal(r.out.join("\n"), wholeOut([foundLine(P), NOT_FOUND_LINE], P));
     });
   }
@@ -85,13 +85,13 @@ describe("an entry is Claude Code", () => {
       },
       onetool: { hostServers: ["b", "a2"] },
     });
-    const r = await runIn(["--config", P], { home: tmpDir(), pathText: tmpDir() });
+    const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: tmpDir() });
     assert.equal(r.out[1], alreadyLine(P, "z1"));
   });
 
   test("an entry named claude that is Claude Code is case 1, with its name", async () => {
     const P = settingsAt({ mcpServers: { claude: { command: "claude", args: ["mcp", "serve"] } } });
-    const r = await runIn(["--config", P], { home: tmpDir(), pathText: standIn().dir });
+    const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: standIn().dir });
     assert.equal(r.out[1], alreadyLine(P, "claude"));
   });
 
@@ -99,7 +99,7 @@ describe("an entry is Claude Code", () => {
     const stand = standIn();
     const text = '{"mcpServers": {"claude": {"command": "something-else"}}}';
     const P = settingsAt(text);
-    const r = await runIn(["--config", P], { home: tmpDir(), pathText: stand.dir, terminal: true });
+    const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: stand.dir, terminal: true });
     assert.equal(r.out.join("\n"), wholeOut([foundLine(P), anotherLine(P)], P));
     assert.deepEqual(r.asked, []);
     assert.equal(read(P), text);
@@ -108,7 +108,7 @@ describe("an entry is Claude Code", () => {
   test("a key Claude (another case) is not named claude: the proposal goes on", async () => {
     const stand = standIn();
     const P = settingsAt({ mcpServers: { Claude: { command: "something-else" } } });
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--no-rules", "--yes"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.out[1], PROPOSAL[0]);
     assert.deepEqual(Object.keys(JSON.parse(read(P)).mcpServers), ["Claude", "claude"]);
   });
@@ -117,7 +117,7 @@ describe("an entry is Claude Code", () => {
 describe("the command claude is found in a text of folders", () => {
   const found = async (pathText) => {
     const P = settingsAt({ mcpServers: {} });
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText });
+    const r = await runIn(["--config", P, "--no-rules", "--yes"], { home: tmpDir(), pathText });
     const written = JSON.parse(read(P));
     return { r, place: written.mcpServers.claude?.command, P };
   };
@@ -131,7 +131,7 @@ describe("the command claude is found in a text of folders", () => {
   test("an empty text, and a text of empty items: not found, and the line says so", async () => {
     for (const pathText of ["", delimiter, `${delimiter}${delimiter}`]) {
       const P = settingsAt({ mcpServers: {} });
-      const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText, terminal: true });
+      const r = await runIn(["--config", P, "--no-rules", "--yes"], { home: tmpDir(), pathText, terminal: true });
       assert.equal(r.code, 0);
       assert.equal(r.out.join("\n"), wholeOut([foundLine(P), NOT_FOUND_LINE], P));
       assert.equal(read(P), '{"mcpServers":{}}');
@@ -193,7 +193,7 @@ describe("the proposal", () => {
     for (const terminal of [true, false]) {
       const stand = standIn();
       const P = settingsAt({ mcpServers: {} });
-      const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir, terminal });
+      const r = await runIn(["--config", P, "--no-rules", "--yes"], { home: tmpDir(), pathText: stand.dir, terminal });
       assert.equal(r.code, 0);
       assert.equal(r.out.join("\n"), wholeOut([foundLine(P), ...PROPOSAL, addedLine(P)], P));
       assert.deepEqual(r.asked, []);
@@ -204,7 +204,7 @@ describe("the proposal", () => {
   test("with no --yes and nobody to ask: nothing is added, one line says how to add it, and nothing is asked", async () => {
     const stand = standIn();
     const P = settingsAt({ mcpServers: {} });
-    const r = await runIn(["--config", P], { home: tmpDir(), pathText: stand.dir, terminal: false });
+    const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: stand.dir, terminal: false });
     assert.equal(r.code, 0);
     assert.equal(r.out.join("\n"), wholeOut([foundLine(P), ...PROPOSAL, nobodyLine(P)], P));
     assert.deepEqual(r.asked, []);
@@ -215,7 +215,7 @@ describe("the proposal", () => {
     const stand = standIn();
     const text = '{"mcpServers": {}}';
     const P = settingsAt(text);
-    const r = await runIn(["--config", P, "--no-claude"], { home: tmpDir(), pathText: stand.dir, terminal: true });
+    const r = await runIn(["--config", P, "--no-rules", "--no-claude"], { home: tmpDir(), pathText: stand.dir, terminal: true });
     assert.equal(r.code, 0);
     assert.equal(r.out.join("\n"), wholeOut([foundLine(P)], P));
     assert.ok(!r.out.join("\n").includes("Claude Code"));
@@ -225,14 +225,14 @@ describe("the proposal", () => {
 
   test("with --no-claude even a file that holds Claude Code, or another claude, says nothing of it", async () => {
     const P = settingsAt({ mcpServers: { claude: { command: "other" } } });
-    const r = await runIn(["--config", P, "--no-claude"], { home: tmpDir(), pathText: standIn().dir });
+    const r = await runIn(["--config", P, "--no-rules", "--no-claude"], { home: tmpDir(), pathText: standIn().dir });
     assert.equal(r.out.join("\n"), wholeOut([foundLine(P)], P));
   });
 
   test("when onetool.allow is a list that is not empty, one more line says to add claude.*", async () => {
     const stand = standIn();
     const P = settingsAt({ mcpServers: {}, onetool: { allow: ["practice.count"] } });
-    const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+    const r = await runIn(["--config", P, "--no-rules", "--yes"], { home: tmpDir(), pathText: stand.dir });
     assert.equal(r.out.join("\n"), wholeOut([foundLine(P), ...PROPOSAL, addedLine(P), allowLine(P)], P));
     assert.deepEqual(JSON.parse(read(P)).onetool.allow, ["practice.count"], "allow is not touched");
   });
@@ -241,7 +241,7 @@ describe("the proposal", () => {
     const stand = standIn();
     for (const onetool of [{ allow: [] }, { deny: ["a.b"] }, {}]) {
       const P = settingsAt({ mcpServers: {}, onetool });
-      const r = await runIn(["--config", P, "--yes"], { home: tmpDir(), pathText: stand.dir });
+      const r = await runIn(["--config", P, "--no-rules", "--yes"], { home: tmpDir(), pathText: stand.dir });
       assert.equal(r.out.join("\n"), wholeOut([foundLine(P), ...PROPOSAL, addedLine(P)], P));
     }
   });
@@ -251,7 +251,7 @@ describe("the question", () => {
   const ask = async (answer, { argv = [] } = {}) => {
     const stand = standIn();
     const P = settingsAt({ mcpServers: {} });
-    const r = await runIn(["--config", P, ...argv], { home: tmpDir(), pathText: stand.dir, terminal: true, ask: typeof answer === "function" ? answer : async () => answer });
+    const r = await runIn(["--config", P, "--no-rules", ...argv], { home: tmpDir(), pathText: stand.dir, terminal: true, ask: typeof answer === "function" ? answer : async () => answer });
     return { r, P, stand };
   };
 
@@ -294,7 +294,7 @@ describe("the question", () => {
   test("the question is asked once, also when the file was made by this run", async () => {
     const stand = standIn();
     const P = join(tmpDir(), "settings.json");
-    const r = await runIn(["--config", P], { home: tmpDir(), pathText: stand.dir, terminal: true, ask: async () => "y" });
+    const r = await runIn(["--config", P, "--no-rules"], { home: tmpDir(), pathText: stand.dir, terminal: true, ask: async () => "y" });
     assert.deepEqual(r.asked, [questionOf(P)]);
     assert.equal(r.out.join("\n"), wholeOut([madeLine(P), ...PROPOSAL, addedLine(P)], P));
     assert.equal(read(P), ADDED(stand.place));
@@ -312,7 +312,7 @@ describe("the question", () => {
     ];
     for (const [value, argv, terminal, pathText] of runs) {
       const P = settingsAt(value);
-      const r = await runIn(["--config", P, ...argv], { home: tmpDir(), pathText, terminal });
+      const r = await runIn(["--config", P, "--no-rules", ...argv], { home: tmpDir(), pathText, terminal });
       assert.deepEqual(r.asked, [], JSON.stringify(argv));
       assert.equal(r.code, 0);
     }

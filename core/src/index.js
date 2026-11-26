@@ -628,7 +628,8 @@ export const INSTRUCTIONS =
   "Before the first run, list the steps of the task. Put every step that needs no decision into one program: " +
   "loops, filters, several tools. Return only the small result you need to decide what comes next. " +
   "Keep large results in state and look at them in a later program. " +
-  "Never use run for one tool call when the next call is already known: put both calls in one program.";
+  "Never use run for one tool call when the next call is already known: put both calls in one program. " +
+  "When the host program loads tools on request, ask for run and search together, in one request.";
 
 export function nextStreak(streak, program, { times = 3 } = {}) {
   const counts = program.ok === true && program.calls === 1 && program.asked === false && program.lib === 0;

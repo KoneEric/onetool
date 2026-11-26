@@ -86,7 +86,7 @@ describe("the instructions of the answer to initialize", () => {
       assert.equal((await raw.callTool("run", { code: "1 + 1" })).result.content[0].text, "2");
       assert.equal((await raw.callTool("search", {})).error, undefined);
       assert.equal((await raw.request("prompts/list", {})).error, undefined);
-      const carrying = raw.lines.filter((line) => line.includes("It saves context only when one program does several steps"));
+      const carrying = raw.lines.filter((line) => line.includes(INSTRUCTIONS.slice(0, 60)));
       assert.equal(carrying.length, 1, "one message holds the text");
       assert.equal(JSON.parse(carrying[0]).id, first.id);
     } finally {
